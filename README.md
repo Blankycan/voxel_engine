@@ -4,3 +4,4 @@ Voxel engine for Bevy
 
 ## Resources
 https://sites.google.com/site/letsmakeavoxelengine/
+https://github.com/TanTanDev/first_voxel_engine
