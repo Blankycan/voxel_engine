@@ -5,6 +5,11 @@ use bevy::render::render_resource::PrimitiveTopology;
 #[macro_use]
 extern crate lazy_static;
 
+mod debug_info;
+mod fly_camera;
+use crate::debug_info::DebugInfoPlugin;
+use crate::fly_camera::{FlyCamera, FlyCameraPlugin};
+
 pub mod chunk;
 pub mod voxel;
 
@@ -13,11 +18,13 @@ use chunk::*;
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .add_plugin(FlyCameraPlugin)
+        .add_plugin(DebugInfoPlugin)
         .add_startup_system(setup)
-        .add_startup_system(test_chunk)
+        .add_startup_system(create_chunk)
         //.add_startup_system(setup_cube)
         //.add_startup_system(setup_triangle)
-        .add_system(update)
+        //.add_system(update)
         .run();
 }
 
@@ -25,13 +32,14 @@ fn main() {
 struct MyCamera;
 
 fn setup(mut commands: Commands) {
-    commands.spawn((
-        Camera3dBundle {
-            transform: Transform::from_xyz(60.0, 45.0, 60.0).looking_at(Vec3::ZERO, Vec3::Y),
+    commands
+        .spawn(Camera3dBundle {
+            transform: Transform::from_xyz(30.0, 25.0, 30.0).looking_at(Vec3::ZERO, Vec3::Y),
             ..default()
-        },
-        MyCamera,
-    ));
+        })
+        .insert(FlyCamera::default())
+        .insert(MyCamera)
+        .insert(Name::new("Fly Camera"));
 
     /*
     commands.insert_resource(AmbientLight {
@@ -52,17 +60,36 @@ fn setup(mut commands: Commands) {
     });
 }
 
-fn test_chunk() {
-    print!("Creating chunk.. ");
-    let chunk = Chunk::new();
-    println!("Done!");
+fn create_chunk(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let chunk = Chunk::new_random(0.8);
 
-    println!("(0, 0, 0): {}", Chunk::get_index(IVec3::new(0, 0, 0)));
-    println!("(1, 0, 0): {}", Chunk::get_index(IVec3::new(1, 0, 0)));
-    println!("(0, 1, 0): {}", Chunk::get_index(IVec3::new(0, 1, 0)));
-    println!("(0, 0, 1): {}", Chunk::get_index(IVec3::new(0, 0, 1)));
-    println!("(1, 1, 1): {}", Chunk::get_index(IVec3::new(1, 1, 1)));
-    println!("(15, 15, 15): {}", Chunk::get_index(IVec3::new(15, 15, 15)));
+    for x in 0..CHUNK_SIZE {
+        for y in 0..CHUNK_SIZE {
+            for z in 0..CHUNK_SIZE {
+                let index: usize = Chunk::index_from(x, y, z);
+
+                if let Some(voxel) = chunk.get_voxel(index) {
+                    if !voxel.active {
+                        continue;
+                    }
+
+                    commands.spawn((
+                        MaterialMeshBundle {
+                            mesh: meshes.add(create_cube().into()),
+                            material: materials.add(Color::WHITE.into()),
+                            transform: Transform::from_xyz(x as f32, y as f32, z as f32),
+                            ..default()
+                        },
+                        Cube,
+                    ));
+                }
+            }
+        }
+    }
 }
 
 #[derive(Component)]
@@ -76,21 +103,14 @@ fn setup_cube(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    for x in 0..32 {
-        for y in 0..32 {
-            for z in 0..32 {
-                commands.spawn((
-                    MaterialMeshBundle {
-                        mesh: meshes.add(create_cube().into()),
-                        material: materials.add(Color::WHITE.into()),
-                        transform: Transform::from_xyz(x as f32, y as f32, z as f32),
-                        ..default()
-                    },
-                    Cube,
-                ));
-            }
-        }
-    }
+    commands.spawn((
+        MaterialMeshBundle {
+            mesh: meshes.add(create_cube().into()),
+            material: materials.add(Color::WHITE.into()),
+            ..default()
+        },
+        Cube,
+    ));
     /*
     // cube
     commands.spawn((
@@ -144,10 +164,10 @@ fn create_cube() -> Mesh {
         ([-size, size, size], [0.0, 1.0, 0.0], [0.0, 1.0]), // FTL
         ([size, size, size], [0.0, 1.0, 0.0], [1.0, 1.0]),  // FTR
         // Bottom
-        ([size, -size, -size], [0.0, -1.0, 0.0], [1.0, 0.0]), // BBR
-        ([-size, -size, -size], [0.0, -1.0, 0.0], [0.0, 0.0]), // BBL
-        ([size, -size, size], [0.0, -1.0, 0.0], [0.0, 1.0]),  // FBR
-        ([-size, -size, size], [0.0, -1.0, 0.0], [1.0, 1.0]), // FBL
+        ([-size, -size, -size], [0.0, -1.0, 0.0], [1.0, 0.0]), // BBL
+        ([size, -size, -size], [0.0, -1.0, 0.0], [0.0, 0.0]),  // BBR
+        ([size, -size, size], [0.0, -1.0, 0.0], [0.0, 1.0]),   // FBR
+        ([-size, -size, size], [0.0, -1.0, 0.0], [1.0, 1.0]),  // FBL
     ];
 
     let front_indices = vec![0, 1, 2, 0, 2, 3];

@@ -15,4 +15,6 @@ opt-level = 3
 
 [dependencies]
 bevy = "0.10.0"
+bevy_egui = "0.20.1"
 lazy_static = "1.4.0"
+rand = "0.8.5"
