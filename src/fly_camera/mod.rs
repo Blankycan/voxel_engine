@@ -91,7 +91,7 @@ fn camera_movement_system(
     if input.pressed(KeyCode::Space) {
         direction += Vec3::Y;
     }
-    if input.pressed(KeyCode::LShift) {
+    if input.pressed(KeyCode::LControl) {
         direction -= Vec3::Y;
     }
 
@@ -100,7 +100,12 @@ fn camera_movement_system(
     }
 
     for (mut transform, fly_camera) in query.iter_mut() {
-        let movement = direction.normalize() * fly_camera.speed * time.delta_seconds();
+        let speed = if input.pressed(KeyCode::LShift) {
+            fly_camera.speed * 5.0
+        } else {
+            fly_camera.speed
+        };
+        let movement = direction.normalize() * speed * time.delta_seconds();
         let orientation = transform.rotation;
         transform.translation += orientation.mul_vec3(movement);
     }
