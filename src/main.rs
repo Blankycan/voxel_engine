@@ -15,6 +15,7 @@ use crate::fly_camera::{FlyCamera, FlyCameraPlugin};
 pub mod chunk;
 mod chunk_manager;
 mod chunk_mesh_builder;
+pub mod face;
 pub mod voxel;
 mod voxel_engine;
 

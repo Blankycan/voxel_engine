@@ -39,7 +39,7 @@ impl Chunk {
         chunk
     }
 
-    pub fn get_index(coordinate: IVec3) -> usize {
+    pub fn get_index(coordinate: &IVec3) -> usize {
         (coordinate.z | (coordinate.y << *BIT_SIZE) | (coordinate.x << (*BIT_SIZE * 2))) as usize
     }
     pub fn index_from(x: usize, y: usize, z: usize) -> usize {

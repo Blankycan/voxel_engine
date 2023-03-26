@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 
 use crate::chunk::CHUNK_SIZE;
+use crate::voxel::Voxel;
 use crate::{chunk::Chunk, chunk_mesh_builder};
 use bevy::prelude::*;
 use bevy::prelude::{Commands, Transform};
@@ -20,6 +21,12 @@ pub const MAX_UNLOAD_MESHES_PER_FRAME: usize = 4;
 pub const MAX_MESHES_TO_RENDER_LIST: usize = 32;
 pub const MAX_RENDER_MESHES_PER_FRAME: usize = 1;
 pub const DEFAULT_RENDER_DISTANCE: i32 = 5;
+
+#[derive(Debug)]
+pub enum ChunkError {
+    NoChunk,
+    NoVoxel,
+}
 
 #[derive(Resource)]
 pub struct ChunkManager {
@@ -59,6 +66,78 @@ impl ChunkManager {
         }
     }
 
+    pub fn make_coords_valid(chunk_pos: &mut IVec3, voxel_pos: &mut IVec3) {
+        let chunk_size = CHUNK_SIZE as i32;
+        // Right
+        if voxel_pos.x >= chunk_size {
+            voxel_pos.x -= chunk_size;
+            chunk_pos.x += 1;
+        }
+        // Left
+        if voxel_pos.x < 0 {
+            voxel_pos.x += chunk_size;
+            chunk_pos.x -= 1;
+        }
+        // Top
+        if voxel_pos.y >= chunk_size {
+            voxel_pos.y -= chunk_size;
+            chunk_pos.y += 1;
+        }
+        // Bottom
+        if voxel_pos.y < 0 {
+            voxel_pos.y += chunk_size;
+            chunk_pos.y -= 1;
+        }
+        // Front
+        if voxel_pos.z >= chunk_size {
+            voxel_pos.z -= chunk_size;
+            chunk_pos.z += 1;
+        }
+        // Back
+        if voxel_pos.z < 0 {
+            voxel_pos.z += chunk_size;
+            chunk_pos.z -= 1;
+        }
+    }
+
+    pub fn get_voxel(&self, chunk_pos: &IVec3, voxel_pos: &IVec3) -> Result<&Voxel, ChunkError> {
+        // println!(
+        //     "Manager - get_voxel chunk {}, voxel_pos {}",
+        //     chunk_pos, voxel_pos
+        // );
+        let mut new_chunk_pos = *chunk_pos;
+        let mut new_voxel_pos = *voxel_pos;
+        ChunkManager::make_coords_valid(&mut new_chunk_pos, &mut new_voxel_pos);
+        // println!(
+        //     "Valid coords are chunk {}, voxel_pos {}",
+        //     chunk_pos, voxel_pos
+        // );
+
+        if let Some(chunk) = self.chunks.get(&new_chunk_pos) {
+            // println!("Got the chunk {}", chunk_pos);
+            if let Some(voxel) = chunk.get_voxel(Chunk::get_index(&new_voxel_pos)) {
+                return Ok(voxel);
+            }
+            return Err(ChunkError::NoVoxel);
+        }
+        Err(ChunkError::NoChunk)
+    }
+
+    pub fn get_adjacent_voxels(
+        &self,
+        chunk_pos: &IVec3,
+        voxel_pos: &IVec3,
+    ) -> Result<(&Voxel, &Voxel, &Voxel, &Voxel, &Voxel, &Voxel), ChunkError> {
+        let (x, y, z) = (voxel_pos.x, voxel_pos.y, voxel_pos.z);
+        let right = self.get_voxel(chunk_pos, &IVec3::new(x + 1, y, z))?;
+        let left = self.get_voxel(chunk_pos, &IVec3::new(x - 1, y, z))?;
+        let top = self.get_voxel(chunk_pos, &IVec3::new(x, y + 1, z))?;
+        let bottom = self.get_voxel(chunk_pos, &IVec3::new(x, y - 1, z))?;
+        let front = self.get_voxel(chunk_pos, &IVec3::new(x, y, z + 1))?;
+        let back = self.get_voxel(chunk_pos, &IVec3::new(x, y, z - 1))?;
+        Ok((right, left, top, bottom, front, back))
+    }
+
     pub fn load_chunks(&mut self) {
         let mut chunks_loaded = 0;
         while let Some(chunk_pos) = self.chunk_load_list.pop_front() {
@@ -67,10 +146,10 @@ impl ChunkManager {
             }
 
             let density = match chunk_pos.y {
-                0 => 0.8,
+                0 => 0.99,
                 3 | 5 => 0.0002,
                 4 => 0.002,
-                _ => 0.002,
+                _ => 0.0,
             };
 
             let chunk = Chunk::new_random(density);
@@ -107,7 +186,7 @@ impl ChunkManager {
                     continue;
                 }
 
-                let mesh = chunk_mesh_builder::build_mesh(chunk, &chunk_pos);
+                let mesh = chunk_mesh_builder::build_mesh(self, chunk, &chunk_pos);
                 self.meshes.insert(chunk_pos, Some(mesh));
                 self.mesh_visible_list.push_back(chunk_pos);
                 // println!(
@@ -169,7 +248,7 @@ impl ChunkManager {
                 for z in -self.render_distance..(self.render_distance + 1) {
                     let chunk_pos = camera_chunk_pos + IVec3::new(x, y, z);
 
-                    // If we already know the chunk, skip
+                    // Queue chunk data
                     if !self.chunks.contains_key(&chunk_pos)
                         && !self.chunk_load_list.contains(&chunk_pos)
                         && self.chunk_load_list.len() < MAX_CHUNK_LOAD_LIST
@@ -178,13 +257,28 @@ impl ChunkManager {
                         self.chunk_load_list.push_back(chunk_pos);
                     }
 
-                    // Queue mesh
                     if !self.meshes.contains_key(&chunk_pos)
                         && !self.mesh_load_list.contains(&chunk_pos)
                         && self.mesh_load_list.len() < MAX_MESH_LOAD_LIST
                     {
-                        // println!("Queue mesh {} for loading..", chunk_pos);
-                        self.mesh_load_list.push_back(chunk_pos);
+                        // Queue mesh if all adjacent chunk's data are loaded
+                        let missing_neighbour_data = [
+                            IVec3::X,
+                            IVec3::NEG_X,
+                            IVec3::Y,
+                            IVec3::NEG_Y,
+                            IVec3::Z,
+                            IVec3::NEG_Z,
+                        ]
+                        .iter_mut()
+                        .map(|v| *v + chunk_pos)
+                        .any(|v| !self.chunks.contains_key(&v));
+
+                        // Queue mesh
+                        if !missing_neighbour_data {
+                            // println!("Queue mesh {} for loading..", chunk_pos);
+                            self.mesh_load_list.push_back(chunk_pos);
+                        }
                     }
                 }
             }

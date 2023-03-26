@@ -3,14 +3,14 @@ use bevy::{
     render::{mesh::Indices, render_resource::PrimitiveTopology},
 };
 
-use crate::chunk::{Chunk, CHUNK_SIZE};
+use crate::{
+    chunk::{Chunk, CHUNK_SIZE},
+    chunk_manager::ChunkManager,
+    face::{Face, Side},
+};
 
-pub fn build_mesh(chunk: &Chunk, chunk_pos: &IVec3) -> Mesh {
-    const HALF_SIZE: f32 = 0.45;
-
-    let mut vertices = Vec::<([f32; 3], [f32; 3], [f32; 2])>::new();
-    let mut indices = Vec::<u32>::new();
-    let mut vert_index = 0;
+pub fn build_mesh(chunk_manager: &ChunkManager, chunk: &Chunk, chunk_pos: &IVec3) -> Mesh {
+    let mut faces = Vec::<Face>::new();
 
     for x in 0..CHUNK_SIZE {
         for y in 0..CHUNK_SIZE {
@@ -21,154 +21,72 @@ pub fn build_mesh(chunk: &Chunk, chunk_pos: &IVec3) -> Mesh {
                     if !voxel.active {
                         continue;
                     }
-                    let pos = Vec3::new(x as f32, y as f32, z as f32);
 
-                    let cube_vertices = [
-                        // Front
-                        (
-                            [pos.x + HALF_SIZE, pos.y + HALF_SIZE, pos.z + HALF_SIZE],
-                            [0.0, 0.0, 1.0],
-                            [1.0, 0.0],
-                        ), // FTR
-                        (
-                            [pos.x - HALF_SIZE, pos.y + HALF_SIZE, pos.z + HALF_SIZE],
-                            [0.0, 0.0, 1.0],
-                            [0.0, 0.0],
-                        ), // FTL
-                        (
-                            [pos.x - HALF_SIZE, pos.y - HALF_SIZE, pos.z + HALF_SIZE],
-                            [0.0, 0.0, 1.0],
-                            [0.0, 1.0],
-                        ), // FBL
-                        (
-                            [pos.x + HALF_SIZE, pos.y - HALF_SIZE, pos.z + HALF_SIZE],
-                            [0.0, 0.0, 1.0],
-                            [1.0, 1.0],
-                        ), // FBR
-                        // Right
-                        (
-                            [pos.x + HALF_SIZE, pos.y + HALF_SIZE, pos.z - HALF_SIZE],
-                            [1.0, 0.0, 0.0],
-                            [1.0, 0.0],
-                        ), // BTR
-                        (
-                            [pos.x + HALF_SIZE, pos.y + HALF_SIZE, pos.z + HALF_SIZE],
-                            [1.0, 0.0, 0.0],
-                            [0.0, 0.0],
-                        ), // FTR
-                        (
-                            [pos.x + HALF_SIZE, pos.y - HALF_SIZE, pos.z + HALF_SIZE],
-                            [1.0, 0.0, 0.0],
-                            [0.0, 1.0],
-                        ), // FBR
-                        (
-                            [pos.x + HALF_SIZE, pos.y - HALF_SIZE, pos.z - HALF_SIZE],
-                            [1.0, 0.0, 0.0],
-                            [1.0, 1.0],
-                        ), // BBR
-                        // Back
-                        (
-                            [pos.x - HALF_SIZE, pos.y + HALF_SIZE, pos.z - HALF_SIZE],
-                            [0.0, 0.0, -1.0],
-                            [1.0, 0.0],
-                        ), // BTL
-                        (
-                            [pos.x + HALF_SIZE, pos.y + HALF_SIZE, pos.z - HALF_SIZE],
-                            [0.0, 0.0, -1.0],
-                            [0.0, 0.0],
-                        ), // BTR
-                        (
-                            [pos.x + HALF_SIZE, pos.y - HALF_SIZE, pos.z - HALF_SIZE],
-                            [0.0, 0.0, -1.0],
-                            [0.0, 1.0],
-                        ), // BBR
-                        (
-                            [pos.x - HALF_SIZE, pos.y - HALF_SIZE, pos.z - HALF_SIZE],
-                            [0.0, 0.0, -1.0],
-                            [1.0, 1.0],
-                        ), // BBL
-                        // Left
-                        (
-                            [pos.x - HALF_SIZE, pos.y + HALF_SIZE, pos.z + HALF_SIZE],
-                            [-1.0, 0.0, 0.0],
-                            [1.0, 0.0],
-                        ), // FTL
-                        (
-                            [pos.x - HALF_SIZE, pos.y + HALF_SIZE, pos.z - HALF_SIZE],
-                            [-1.0, 0.0, 0.0],
-                            [0.0, 0.0],
-                        ), // BTL
-                        (
-                            [pos.x - HALF_SIZE, pos.y - HALF_SIZE, pos.z - HALF_SIZE],
-                            [-1.0, 0.0, 0.0],
-                            [0.0, 1.0],
-                        ), // BBL
-                        (
-                            [pos.x - HALF_SIZE, pos.y - HALF_SIZE, pos.z + HALF_SIZE],
-                            [-1.0, 0.0, 0.0],
-                            [1.0, 1.0],
-                        ), // FBL
-                        // Top
-                        (
-                            [pos.x + HALF_SIZE, pos.y + HALF_SIZE, pos.z - HALF_SIZE],
-                            [0.0, 1.0, 0.0],
-                            [1.0, 0.0],
-                        ), // BTR
-                        (
-                            [pos.x - HALF_SIZE, pos.y + HALF_SIZE, pos.z - HALF_SIZE],
-                            [0.0, 1.0, 0.0],
-                            [0.0, 0.0],
-                        ), // BTL
-                        (
-                            [pos.x - HALF_SIZE, pos.y + HALF_SIZE, pos.z + HALF_SIZE],
-                            [0.0, 1.0, 0.0],
-                            [0.0, 1.0],
-                        ), // FTL
-                        (
-                            [pos.x + HALF_SIZE, pos.y + HALF_SIZE, pos.z + HALF_SIZE],
-                            [0.0, 1.0, 0.0],
-                            [1.0, 1.0],
-                        ), // FTR
-                        // Bottom
-                        (
-                            [pos.x - HALF_SIZE, pos.y - HALF_SIZE, pos.z - HALF_SIZE],
-                            [0.0, -1.0, 0.0],
-                            [1.0, 0.0],
-                        ), // BBL
-                        (
-                            [pos.x + HALF_SIZE, pos.y - HALF_SIZE, pos.z - HALF_SIZE],
-                            [0.0, -1.0, 0.0],
-                            [0.0, 0.0],
-                        ), // BBR
-                        (
-                            [pos.x + HALF_SIZE, pos.y - HALF_SIZE, pos.z + HALF_SIZE],
-                            [0.0, -1.0, 0.0],
-                            [0.0, 1.0],
-                        ), // FBR
-                        (
-                            [pos.x - HALF_SIZE, pos.y - HALF_SIZE, pos.z + HALF_SIZE],
-                            [0.0, -1.0, 0.0],
-                            [1.0, 1.0],
-                        ), // FBL
-                    ];
-                    vertices.extend(cube_vertices.iter().cloned());
+                    let voxel_pos = IVec3::new(x as i32, y as i32, z as i32);
+                    let voxel_pos_local = Vec3::new(x as f32, y as f32, z as f32);
 
-                    for _ in 0..6 {
-                        indices.push(vert_index);
-                        indices.push(vert_index + 1);
-                        indices.push(vert_index + 2);
-                        indices.push(vert_index);
-                        indices.push(vert_index + 2);
-                        indices.push(vert_index + 3);
-                        vert_index += 4;
+                    /*
+                    if voxel.active {
+                        faces.push(Face::new(Side::Left, voxel_pos_local));
+                        faces.push(Face::new(Side::Bottom, voxel_pos_local));
+                        faces.push(Face::new(Side::Back, voxel_pos_local));
+                        faces.push(Face::new(Side::Right, voxel_pos_local));
+                        faces.push(Face::new(Side::Top, voxel_pos_local));
+                        faces.push(Face::new(Side::Front, voxel_pos_local));
+                    }
+                    */
+
+                    if let Ok((right, left, top, bottom, front, back)) =
+                        chunk_manager.get_adjacent_voxels(chunk_pos, &voxel_pos)
+                    {
+                        if !left.active {
+                            faces.push(Face::new(Side::Left, voxel_pos_local));
+                        }
+                        if !bottom.active {
+                            faces.push(Face::new(Side::Bottom, voxel_pos_local));
+                        }
+                        if !back.active {
+                            faces.push(Face::new(Side::Back, voxel_pos_local));
+                        }
+
+                        if !right.active {
+                            faces.push(Face::new(Side::Right, voxel_pos_local));
+                        }
+                        if !top.active {
+                            faces.push(Face::new(Side::Top, voxel_pos_local));
+                        }
+                        if !front.active {
+                            faces.push(Face::new(Side::Front, voxel_pos_local));
+                        }
                     }
                 }
             }
         }
     }
 
-    let mesh_indices = Indices::U32(indices);
+    let mut vertices = Vec::<([f32; 3], [f32; 3], [f32; 2])>::new();
+    let mut indices = Vec::<u32>::new();
+    let mut vert_index = 0;
 
+    for face in faces {
+        (0..4).for_each(|index| {
+            vertices.push((
+                face.vertices[index].into(),
+                face.normal.into(),
+                face.uv[index].into(),
+            ));
+        });
+
+        indices.push(vert_index);
+        indices.push(vert_index + 1);
+        indices.push(vert_index + 2);
+        indices.push(vert_index);
+        indices.push(vert_index + 2);
+        indices.push(vert_index + 3);
+        vert_index += 4;
+    }
+
+    let mesh_indices = Indices::U32(indices);
     let mut positions = Vec::new();
     let mut normals = Vec::new();
     let mut uvs = Vec::new();
