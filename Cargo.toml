@@ -17,4 +17,5 @@ opt-level = 3
 bevy = "0.10.0"
 bevy_egui = "0.20.1"
 lazy_static = "1.4.0"
+noise = "0.8.2"
 rand = "0.8.5"

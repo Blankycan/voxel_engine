@@ -64,11 +64,49 @@ impl Chunk {
         chunk
     }
 
+    pub fn new_perlin(chunk_pos: IVec3, seed: u32) -> Self {
+        let mut chunk = Self {
+            voxels: [(); (CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE)].map(|_| Voxel::new(false)),
+            empty: false,
+        };
+        use noise::{NoiseFn, Perlin};
+
+        let perlin = Perlin::new(seed);
+        for (index, voxel) in chunk.voxels.iter_mut().enumerate() {
+            let coord = Self::get_coordinate(index);
+            let (chunk_x, chunk_y, chunk_z) = (
+                chunk_pos.x as f64 * CHUNK_SIZE as f64,
+                chunk_pos.y as f64 * CHUNK_SIZE as f64,
+                chunk_pos.z as f64 * CHUNK_SIZE as f64,
+            );
+
+            let down_scale = 0.027f64;
+            let x = (chunk_x + coord.x as f64) * down_scale;
+            let y = (chunk_y + coord.y as f64) * down_scale;
+            let z = (chunk_z + coord.z as f64) * down_scale;
+            let density = perlin.get([x, y, z]);
+            if density > 0.3f64 {
+                voxel.active = true;
+            }
+        }
+
+        chunk.check_empty();
+        chunk
+    }
+
     pub fn get_index(coordinate: &IVec3) -> usize {
         (coordinate.z | (coordinate.y << *BIT_SIZE) | (coordinate.x << (*BIT_SIZE * 2))) as usize
     }
     pub fn index_from(x: usize, y: usize, z: usize) -> usize {
         (z | (y << *BIT_SIZE) | (x << (*BIT_SIZE * 2))) as usize
+    }
+
+    pub fn get_coordinate(index: usize) -> IVec3 {
+        IVec3::new(
+            (index as f32 / (CHUNK_SIZE * CHUNK_SIZE) as f32) as i32,
+            ((index as f32 / CHUNK_SIZE as f32) % CHUNK_SIZE as f32) as i32,
+            (index as f32 % CHUNK_SIZE as f32) as i32,
+        )
     }
 
     pub fn get_voxel(&self, index: usize) -> Option<&Voxel> {

@@ -146,7 +146,8 @@ impl ChunkManager {
                 break;
             }
 
-            let chunk: Chunk;
+            let chunk: Chunk = Chunk::new_perlin(chunk_pos, 1337);
+            /*
             if chunk_pos.y == 6 {
                 chunk = Chunk::new_sphere(
                     rand::thread_rng().gen_range(1.0..(((CHUNK_SIZE / 2) + 1) as f32)) as usize,
@@ -161,6 +162,7 @@ impl ChunkManager {
 
                 chunk = Chunk::new_random(density);
             }
+            */
             self.chunks.insert(chunk_pos, chunk);
             // println!(
             //     " + Chunk {} loaded, empty: {} (Total: {})",
