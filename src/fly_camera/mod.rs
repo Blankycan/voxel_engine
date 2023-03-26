@@ -28,6 +28,7 @@ impl Plugin for FlyCameraPlugin {
 #[derive(Component, Reflect)]
 pub struct FlyCamera {
     pub speed: f32,
+    pub speed_fast: f32,
     pub rotate_x_sensitivity: f32,
     pub rotate_y_sensitivity: f32,
 }
@@ -36,8 +37,9 @@ impl Default for FlyCamera {
     fn default() -> Self {
         Self {
             speed: 5.0,
-            rotate_x_sensitivity: 0.01,
-            rotate_y_sensitivity: 0.01,
+            speed_fast: 50.0,
+            rotate_x_sensitivity: 10.0,
+            rotate_y_sensitivity: 10.0,
         }
     }
 }
@@ -58,14 +60,15 @@ fn camera_orientation_system(
 
     for (mut transform, fly_camera) in query.iter_mut() {
         if rotation_move.length_squared() > 0.0 {
-            let delta_x = -rotation_move.x * fly_camera.rotate_x_sensitivity;
-            let delta_y = -rotation_move.y * fly_camera.rotate_y_sensitivity;
+            let delta_x = -rotation_move.x * fly_camera.rotate_x_sensitivity * time.delta_seconds();
+            let delta_y = -rotation_move.y * fly_camera.rotate_y_sensitivity * time.delta_seconds();
             let yaw = Quat::from_rotation_y(delta_x);
             let pitch = Quat::from_rotation_x(delta_y);
+
             // Rotate around global y axis
-            transform.rotation = yaw * transform.rotation;
+            let new_rotation = transform.rotation.slerp(yaw * transform.rotation, 0.2);
             // Rotate around local x axis
-            transform.rotation = transform.rotation * pitch;
+            transform.rotation = new_rotation.slerp(new_rotation * pitch, 0.2);
         }
     }
 }
@@ -101,7 +104,7 @@ fn camera_movement_system(
 
     for (mut transform, fly_camera) in query.iter_mut() {
         let speed = if input.pressed(KeyCode::LShift) {
-            fly_camera.speed * 5.0
+            fly_camera.speed_fast
         } else {
             fly_camera.speed
         };
