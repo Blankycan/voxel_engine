@@ -15,7 +15,7 @@ fn load_data(mut chunk_manager: ResMut<ChunkManager>) {
     chunk_manager.load_meshes();
 }
 
-pub fn unload_data(mut commands: Commands, mut chunk_manager: ResMut<ChunkManager>) {
+pub fn unload_data(commands: Commands, mut chunk_manager: ResMut<ChunkManager>) {
     chunk_manager.unload_chunks();
     chunk_manager.unload_meshes(commands);
 }
@@ -29,9 +29,9 @@ fn check_visibility(
 }
 
 fn render(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    commands: Commands,
+    meshes: ResMut<Assets<Mesh>>,
+    materials: ResMut<Assets<StandardMaterial>>,
     mut chunk_manager: ResMut<ChunkManager>,
 ) {
     chunk_manager.render(commands, meshes, materials);
