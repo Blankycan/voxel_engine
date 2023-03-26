@@ -48,7 +48,6 @@ pub fn build_mesh(chunk_manager: &ChunkManager, chunk: &Chunk, chunk_pos: &IVec3
                         if !back.active {
                             faces.push(Face::new(Side::Back, voxel_pos_local));
                         }
-
                         if !right.active {
                             faces.push(Face::new(Side::Right, voxel_pos_local));
                         }
