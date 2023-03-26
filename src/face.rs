@@ -8,6 +8,7 @@ pub const UVS: [Vec2; 4] = [
     Vec2::new(1.0, 1.0),
 ];
 
+#[derive(Copy, Clone)]
 pub enum Side {
     Right,
     Left,
@@ -28,10 +29,12 @@ pub fn get_normal(side: Side) -> Vec3 {
     }
 }
 
+#[derive(Copy, Clone)]
 pub struct Face {
     pub uv: [Vec2; 4],
     pub normal: Vec3,
     pub vertices: [Vec3; 4],
+    pub side: Side,
 }
 
 impl Face {
@@ -79,6 +82,7 @@ impl Face {
             uv: UVS,
             normal: get_normal(side),
             vertices: vertices,
+            side: side,
         }
     }
 }
