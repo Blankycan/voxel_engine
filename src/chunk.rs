@@ -39,6 +39,31 @@ impl Chunk {
         chunk
     }
 
+    pub fn new_sphere(radius: usize) -> Self {
+        let mut chunk = Self {
+            voxels: [(); (CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE)].map(|_| Voxel::new(false)),
+            empty: false,
+        };
+        for x in 0..CHUNK_SIZE {
+            for y in 0..CHUNK_SIZE {
+                for z in 0..CHUNK_SIZE {
+                    let (f_x, f_y, f_z) = (x as f32, y as f32, z as f32);
+                    let f_radius = radius as f32;
+                    if f32::sqrt(
+                        (f_x - f_radius) * (f_x - f_radius)
+                            + (f_y - f_radius) * (f_y - f_radius)
+                            + (f_z - f_radius) * (f_z - f_radius),
+                    ) <= f_radius
+                    {
+                        let index = Chunk::index_from(x, y, z);
+                        chunk.voxels[index].active = true;
+                    }
+                }
+            }
+        }
+        chunk
+    }
+
     pub fn get_index(coordinate: &IVec3) -> usize {
         (coordinate.z | (coordinate.y << *BIT_SIZE) | (coordinate.x << (*BIT_SIZE * 2))) as usize
     }

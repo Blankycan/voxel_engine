@@ -7,6 +7,7 @@ use bevy::prelude::*;
 use bevy::prelude::{Commands, Transform};
 use bevy::render::primitives::Frustum;
 use bevy::utils::hashbrown::HashMap;
+use rand::Rng;
 
 pub const MAX_CHUNKS: usize = 10000;
 pub const MAX_MESHES: usize = 10000;
@@ -20,7 +21,7 @@ pub const MAX_UNLOAD_CHUNKS_PER_FRAME: usize = 4;
 pub const MAX_UNLOAD_MESHES_PER_FRAME: usize = 4;
 pub const MAX_MESHES_TO_RENDER_LIST: usize = 32;
 pub const MAX_RENDER_MESHES_PER_FRAME: usize = 1;
-pub const DEFAULT_RENDER_DISTANCE: i32 = 5;
+pub const DEFAULT_RENDER_DISTANCE: i32 = 6;
 
 #[derive(Debug)]
 pub enum ChunkError {
@@ -145,14 +146,21 @@ impl ChunkManager {
                 break;
             }
 
-            let density = match chunk_pos.y {
-                0 => 0.99,
-                3 | 5 => 0.0002,
-                4 => 0.002,
-                _ => 0.0,
-            };
+            let chunk: Chunk;
+            if chunk_pos.y == 6 {
+                chunk = Chunk::new_sphere(
+                    rand::thread_rng().gen_range(1.0..(((CHUNK_SIZE / 2) + 1) as f32)) as usize,
+                );
+            } else {
+                let density = match chunk_pos.y {
+                    0 => 0.99,
+                    3 | 5 => 0.0002,
+                    4 => 0.002,
+                    _ => 0.0,
+                };
 
-            let chunk = Chunk::new_random(density);
+                chunk = Chunk::new_random(density);
+            }
             self.chunks.insert(chunk_pos, chunk);
             // println!(
             //     " + Chunk {} loaded, empty: {} (Total: {})",
