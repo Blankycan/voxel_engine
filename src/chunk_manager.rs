@@ -7,21 +7,20 @@ use bevy::prelude::*;
 use bevy::prelude::{Commands, Transform};
 use bevy::render::primitives::Frustum;
 use bevy::utils::hashbrown::HashMap;
-use rand::Rng;
 
 pub const MAX_CHUNKS: usize = 10000;
 pub const MAX_MESHES: usize = 10000;
 pub const MAX_CHUNK_LOAD_LIST: usize = 16;
 pub const MAX_MESH_LOAD_LIST: usize = 16;
-pub const MAX_LOAD_CHUNKS_PER_FRAME: usize = 2;
-pub const MAX_LOAD_MESHES_PER_FRAME: usize = 2;
+pub const MAX_LOAD_CHUNKS_PER_FRAME: usize = 4;
+pub const MAX_LOAD_MESHES_PER_FRAME: usize = 4;
 pub const MAX_CHUNK_UNLOAD_LIST: usize = 16;
 pub const MAX_MESH_UNLOAD_LIST: usize = 16;
-pub const MAX_UNLOAD_CHUNKS_PER_FRAME: usize = 4;
-pub const MAX_UNLOAD_MESHES_PER_FRAME: usize = 4;
+pub const MAX_UNLOAD_CHUNKS_PER_FRAME: usize = 8;
+pub const MAX_UNLOAD_MESHES_PER_FRAME: usize = 8;
 pub const MAX_MESHES_TO_RENDER_LIST: usize = 32;
-pub const MAX_RENDER_MESHES_PER_FRAME: usize = 1;
-pub const DEFAULT_RENDER_DISTANCE: i32 = 6;
+pub const MAX_RENDER_MESHES_PER_FRAME: usize = 4;
+pub const DEFAULT_RENDER_DISTANCE: i32 = 8;
 
 #[derive(Debug)]
 pub enum ChunkError {
@@ -149,6 +148,7 @@ impl ChunkManager {
             let chunk: Chunk = Chunk::new_perlin(chunk_pos, 1337);
             /*
             if chunk_pos.y == 6 {
+                use rand::Rng;
                 chunk = Chunk::new_sphere(
                     rand::thread_rng().gen_range(1.0..(((CHUNK_SIZE / 2) + 1) as f32)) as usize,
                 );
