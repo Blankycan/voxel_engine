@@ -1,8 +1,8 @@
 use std::collections::VecDeque;
 
-use crate::chunk::CHUNK_SIZE;
+use crate::chunk::*;
 use crate::face::Side;
-use crate::voxel::Voxel;
+use crate::voxel::{Voxel, VoxelType};
 use crate::{chunk::Chunk, chunk_mesh_builder};
 use bevy::asset::HandleId;
 use bevy::prelude::*;
@@ -159,6 +159,31 @@ impl ChunkManager {
             Side::Front => self.get_voxel(chunk_pos, &IVec3::new(x, y, z + 1))?,
             Side::Back => self.get_voxel(chunk_pos, &IVec3::new(x, y, z - 1))?,
         })
+    }
+
+    pub fn get_chunk(&mut self, chunk_pos: &IVec3) -> Option<&mut Chunk> {
+        self.chunks.get_mut(chunk_pos)
+    }
+
+    pub fn get_adjacent_chunks(
+        &self,
+        chunk_pos: &IVec3,
+    ) -> (
+        Option<&Chunk>,
+        Option<&Chunk>,
+        Option<&Chunk>,
+        Option<&Chunk>,
+        Option<&Chunk>,
+        Option<&Chunk>,
+    ) {
+        let (x, y, z) = (chunk_pos.x, chunk_pos.y, chunk_pos.z);
+        let right = self.chunks.get(&IVec3::new(x + 1, y, z));
+        let left = self.chunks.get(&IVec3::new(x - 1, y, z));
+        let top = self.chunks.get(&IVec3::new(x, y + 1, z));
+        let bottom = self.chunks.get(&IVec3::new(x, y - 1, z));
+        let front = self.chunks.get(&IVec3::new(x, y, z + 1));
+        let back = self.chunks.get(&IVec3::new(x, y, z - 1));
+        (right, left, top, bottom, front, back)
     }
 
     pub fn load_chunks(&mut self) {
@@ -345,9 +370,10 @@ impl ChunkManager {
                         // Queue mesh
                         if !missing_neighbour_data {
                             // println!("Queue mesh {} for loading..", chunk_pos);
-                            /*if let Some(chunk) = self.chunks.get_mut(&chunk_pos) {
-                                chunk.update_voxel_types(self, &chunk_pos);
-                            }*/
+                            //self.update_chunk_voxel_data(&chunk_pos);
+                            //if let Some(chunk) = self.chunks.get_mut(&chunk_pos) {}
+                            let chunk = self.chunks.get_mut(&chunk_pos).unwrap();
+                            chunk.update_voxel_data(self, &chunk_pos);
                             //self.chunks.insert(chunk_pos, chunk);
                             self.mesh_load_list.push_back(chunk_pos);
                         }
@@ -431,4 +457,48 @@ impl ChunkManager {
             }
         }
     }
+
+    /*
+    pub fn update_chunk_voxel_data(&mut self, chunk_pos: &IVec3) {
+        if let Some(chunk) = self.chunks.get_mut(chunk_pos) {
+            for x in 0..CHUNK_SIZE {
+                for y in 0..CHUNK_SIZE {
+                    for z in 0..CHUNK_SIZE {
+                        let index = Chunk::index_from(x, y, z);
+                        if let Some(voxel) = chunk.voxels.get_mut(index) {
+                            if voxel.active {
+                                let voxel_pos = IVec3::new(x as i32, y as i32, z as i32);
+                                voxel.voxel_type =
+                                    self.update_voxel_data(chunk_pos, &voxel_pos, voxel.voxel_type);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn update_voxel_data(
+        &self,
+        chunk_pos: &IVec3,
+        voxel_pos: &IVec3,
+        voxel_type: VoxelType,
+    ) -> VoxelType {
+        match voxel_type {
+            // If Grass and has a block on top, make into Dirt
+            VoxelType::Grass => {
+                if let Ok(top_voxel) = self.get_adjacent_voxel(Side::Top, chunk_pos, &voxel_pos) {
+                    if top_voxel.active {
+                        VoxelType::Dirt
+                    } else {
+                        VoxelType::Grass
+                    }
+                } else {
+                    VoxelType::Grass
+                }
+            }
+            _ => voxel_type,
+        }
+    }
+    */
 }

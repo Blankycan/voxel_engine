@@ -140,7 +140,7 @@ impl Chunk {
         true
     }
 
-    pub fn update_voxel_types(&mut self, chunk_manager: &ChunkManager, chunk_pos: &IVec3) {
+    pub fn update_voxel_data(&mut self, chunk_manager: &ChunkManager, chunk_pos: &IVec3) {
         for x in 0..CHUNK_SIZE {
             for y in 0..CHUNK_SIZE {
                 for z in 0..CHUNK_SIZE {
