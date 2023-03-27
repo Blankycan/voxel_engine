@@ -199,7 +199,7 @@ impl ChunkManager {
         }
     }
 
-    pub fn rebuild_chunks(&mut self) {
+    pub fn rebuild_chunks(&mut self, mut commands: Commands) {
         let mut chunks_rebuilt = 0;
         while let Some(chunk_pos) = self.chunk_rebuild_list.pop_front() {
             if let Some(chunk) = self.chunks.get(&chunk_pos) {
@@ -222,7 +222,7 @@ impl ChunkManager {
                 }
 
                 // Update the data of all our neighbors
-                let neighbour_chunk_pos = [
+                let neighbour_chunk_pos: Vec<IVec3> = [
                     IVec3::X,
                     IVec3::NEG_X,
                     IVec3::Y,
@@ -232,7 +232,8 @@ impl ChunkManager {
                 ]
                 .iter_mut()
                 .map(|v| *v + chunk_pos)
-                .filter(|v| self.chunks.contains_key(&v));
+                .filter(|v| self.chunks.contains_key(&v))
+                .collect();
                 println!(
                     "Not sure what to do with these neighbors: {:?}",
                     neighbour_chunk_pos

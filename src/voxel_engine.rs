@@ -7,7 +7,16 @@ pub struct VoxelEnginePlugin;
 impl Plugin for VoxelEnginePlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(load_resources)
-            .add_systems((load_data, unload_data, check_visibility, render).chain())
+            .add_systems(
+                (
+                    load_data,
+                    rebuild_data,
+                    unload_data,
+                    check_visibility,
+                    render,
+                )
+                    .chain(),
+            )
             .init_resource::<ChunkManager>();
     }
 }
@@ -32,8 +41,11 @@ fn load_resources(
 
 fn load_data(mut chunk_manager: ResMut<ChunkManager>) {
     chunk_manager.load_chunks();
-    chunk_manager.rebuild_chunks();
     chunk_manager.load_meshes();
+}
+
+fn rebuild_data(commands: Commands, mut chunk_manager: ResMut<ChunkManager>) {
+    chunk_manager.rebuild_chunks(commands);
 }
 
 pub fn unload_data(commands: Commands, mut chunk_manager: ResMut<ChunkManager>) {
