@@ -4,10 +4,12 @@ use crate::chunk::CHUNK_SIZE;
 use crate::face::Side;
 use crate::voxel::Voxel;
 use crate::{chunk::Chunk, chunk_mesh_builder};
+use bevy::asset::HandleId;
 use bevy::prelude::*;
 use bevy::prelude::{Commands, Transform};
 use bevy::render::primitives::Frustum;
 use bevy::utils::hashbrown::HashMap;
+use bevy::utils::Uuid;
 
 pub const MAX_CHUNKS: usize = 10000;
 pub const MAX_MESHES: usize = 10000;
@@ -44,6 +46,9 @@ pub struct ChunkManager {
     rendered_meshes: HashMap<IVec3, Entity>,
 
     render_distance: i32,
+
+    pub spritesheet_handle: Handle<Image>,
+    pub material_handle: Handle<StandardMaterial>,
 }
 
 impl Default for ChunkManager {
@@ -64,55 +69,51 @@ impl ChunkManager {
             mesh_visible_list: VecDeque::<IVec3>::with_capacity(MAX_MESHES_TO_RENDER_LIST),
             rendered_meshes: HashMap::with_capacity(MAX_MESHES),
             render_distance: DEFAULT_RENDER_DISTANCE,
+            spritesheet_handle: Handle::<Image>::weak(HandleId::Id(Uuid::nil(), 0)),
+            material_handle: Handle::<StandardMaterial>::weak(HandleId::Id(Uuid::nil(), 0)),
         }
     }
 
+    /// If voxel_pos are outside of the given voxel, step to the adjacent voxel
+    /// in that direction, and update the positions
     pub fn make_coords_valid(chunk_pos: &mut IVec3, voxel_pos: &mut IVec3) {
         let chunk_size = CHUNK_SIZE as i32;
         // Right
-        if voxel_pos.x >= chunk_size {
+        while voxel_pos.x >= chunk_size {
             voxel_pos.x -= chunk_size;
             chunk_pos.x += 1;
         }
         // Left
-        if voxel_pos.x < 0 {
+        while voxel_pos.x < 0 {
             voxel_pos.x += chunk_size;
             chunk_pos.x -= 1;
         }
         // Top
-        if voxel_pos.y >= chunk_size {
+        while voxel_pos.y >= chunk_size {
             voxel_pos.y -= chunk_size;
             chunk_pos.y += 1;
         }
         // Bottom
-        if voxel_pos.y < 0 {
+        while voxel_pos.y < 0 {
             voxel_pos.y += chunk_size;
             chunk_pos.y -= 1;
         }
         // Front
-        if voxel_pos.z >= chunk_size {
+        while voxel_pos.z >= chunk_size {
             voxel_pos.z -= chunk_size;
             chunk_pos.z += 1;
         }
         // Back
-        if voxel_pos.z < 0 {
+        while voxel_pos.z < 0 {
             voxel_pos.z += chunk_size;
             chunk_pos.z -= 1;
         }
     }
 
     pub fn get_voxel(&self, chunk_pos: &IVec3, voxel_pos: &IVec3) -> Result<&Voxel, ChunkError> {
-        // println!(
-        //     "Manager - get_voxel chunk {}, voxel_pos {}",
-        //     chunk_pos, voxel_pos
-        // );
         let mut new_chunk_pos = *chunk_pos;
         let mut new_voxel_pos = *voxel_pos;
         ChunkManager::make_coords_valid(&mut new_chunk_pos, &mut new_voxel_pos);
-        // println!(
-        //     "Valid coords are chunk {}, voxel_pos {}",
-        //     chunk_pos, voxel_pos
-        // );
 
         if let Some(chunk) = self.chunks.get(&new_chunk_pos) {
             // println!("Got the chunk {}", chunk_pos);
@@ -362,7 +363,6 @@ impl ChunkManager {
         mut commands: Commands,
         mut meshes: ResMut<Assets<Mesh>>,
         mut materials: ResMut<Assets<StandardMaterial>>,
-        asset_server: Res<AssetServer>,
     ) {
         let mut rendered_meshes = 0;
         while let Some(chunk_pos) = self.mesh_visible_list.pop_front() {
@@ -376,13 +376,7 @@ impl ChunkManager {
                     let chunk_entity = commands
                         .spawn(MaterialMeshBundle {
                             mesh: meshes.add(mesh.clone()),
-                            material: materials.add(StandardMaterial {
-                                base_color: Color::WHITE.into(),
-                                base_color_texture: Some(asset_server.load("spritesheet.png")),
-                                alpha_mode: AlphaMode::Blend,
-                                unlit: false,
-                                ..default()
-                            }),
+                            material: self.material_handle.clone(),
                             transform: Transform::from_xyz(
                                 chunk_pos.x as f32 * CHUNK_SIZE as f32,
                                 chunk_pos.y as f32 * CHUNK_SIZE as f32,
