@@ -15,8 +15,8 @@ pub struct Voxel {
 impl Default for Voxel {
     fn default() -> Self {
         Self {
-            active: true,
-            voxel_type: VoxelType::Default,
+            active: false,
+            voxel_type: VoxelType::None,
         }
     }
 }
@@ -32,7 +32,7 @@ impl Voxel {
     pub fn new_empty() -> Self {
         Self {
             active: false,
-            voxel_type: VoxelType::Default,
+            voxel_type: VoxelType::None,
         }
     }
 }

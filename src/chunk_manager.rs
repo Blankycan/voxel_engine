@@ -15,8 +15,10 @@ pub const MAX_CHUNKS: usize = 10000;
 pub const MAX_MESHES: usize = 10000;
 pub const MAX_CHUNK_LOAD_LIST: usize = 16;
 pub const MAX_MESH_LOAD_LIST: usize = 16;
+pub const MAX_CHUNK_REBUILD_LIST: usize = 16;
 pub const MAX_LOAD_CHUNKS_PER_FRAME: usize = 4;
 pub const MAX_LOAD_MESHES_PER_FRAME: usize = 4;
+pub const MAX_REBUILD_CHUNKS_PER_FRAME: usize = 8;
 pub const MAX_CHUNK_UNLOAD_LIST: usize = 16;
 pub const MAX_MESH_UNLOAD_LIST: usize = 16;
 pub const MAX_UNLOAD_CHUNKS_PER_FRAME: usize = 8;
@@ -37,12 +39,13 @@ pub struct ChunkManager {
     meshes: HashMap<IVec3, Option<Mesh>>,
 
     chunk_load_list: VecDeque<IVec3>,
-    mesh_load_list: VecDeque<IVec3>,
-
+    chunk_rebuild_list: VecDeque<IVec3>,
     chunk_unload_list: VecDeque<IVec3>,
+
+    mesh_load_list: VecDeque<IVec3>,
     mesh_unload_list: VecDeque<IVec3>,
 
-    mesh_visible_list: VecDeque<IVec3>,
+    mesh_render_list: VecDeque<IVec3>,
     rendered_meshes: HashMap<IVec3, Entity>,
 
     render_distance: i32,
@@ -63,10 +66,11 @@ impl ChunkManager {
             chunks: HashMap::with_capacity(MAX_CHUNKS),
             meshes: HashMap::with_capacity(MAX_MESHES),
             chunk_load_list: VecDeque::<IVec3>::with_capacity(MAX_CHUNK_LOAD_LIST),
-            mesh_load_list: VecDeque::<IVec3>::with_capacity(MAX_MESH_LOAD_LIST),
+            chunk_rebuild_list: VecDeque::<IVec3>::with_capacity(MAX_CHUNK_REBUILD_LIST),
             chunk_unload_list: VecDeque::<IVec3>::with_capacity(MAX_CHUNK_UNLOAD_LIST),
+            mesh_load_list: VecDeque::<IVec3>::with_capacity(MAX_MESH_LOAD_LIST),
             mesh_unload_list: VecDeque::<IVec3>::with_capacity(MAX_MESH_UNLOAD_LIST),
-            mesh_visible_list: VecDeque::<IVec3>::with_capacity(MAX_MESHES_TO_RENDER_LIST),
+            mesh_render_list: VecDeque::<IVec3>::with_capacity(MAX_MESHES_TO_RENDER_LIST),
             rendered_meshes: HashMap::with_capacity(MAX_MESHES),
             render_distance: DEFAULT_RENDER_DISTANCE,
             spritesheet_handle: Handle::<Image>::weak(HandleId::Id(Uuid::nil(), 0)),
@@ -164,26 +168,9 @@ impl ChunkManager {
                 break;
             }
 
-            let mut chunk: Chunk = Chunk::new_perlin(chunk_pos, 1337);
-            /*
-            if chunk_pos.y == 6 {
-                use rand::Rng;
-                chunk = Chunk::new_sphere(
-                    rand::thread_rng().gen_range(1.0..(((CHUNK_SIZE / 2) + 1) as f32)) as usize,
-                );
-            } else {
-                let density = match chunk_pos.y {
-                    0 => 0.99,
-                    3 | 5 => 0.0002,
-                    4 => 0.002,
-                    _ => 0.0,
-                };
+            let mut chunk: Chunk = Chunk::new();
+            chunk.setup_perlin(chunk_pos, 1337);
 
-                chunk = Chunk::new_random(density);
-            }
-            */
-            self.chunks.insert(chunk_pos, chunk);
-            chunk.update_voxel_types(self, &chunk_pos);
             self.chunks.insert(chunk_pos, chunk);
             // println!(
             //     " + Chunk {} loaded, empty: {} (Total: {})",
@@ -199,12 +186,72 @@ impl ChunkManager {
         }
     }
 
+    pub fn unload_chunks(&mut self) {
+        let mut chunks_unloaded = 0;
+        while let Some(chunk_pos) = self.chunk_unload_list.pop_front() {
+            // println!(" - Chunk {} unloaded", chunk_pos);
+            self.chunks.remove(&chunk_pos);
+
+            chunks_unloaded += 1;
+            if chunks_unloaded >= MAX_UNLOAD_CHUNKS_PER_FRAME {
+                break;
+            }
+        }
+    }
+
+    pub fn rebuild_chunks(&mut self) {
+        let mut chunks_rebuilt = 0;
+        while let Some(chunk_pos) = self.chunk_rebuild_list.pop_front() {
+            if let Some(chunk) = self.chunks.get(&chunk_pos) {
+                // First remove the mesh from our world
+                if let Some(entity) = self.rendered_meshes.remove(&chunk_pos) {
+                    // println!(" - Entity removed");
+                    commands.entity(entity).despawn();
+                }
+
+                // Empty chunks have no mesh, skip
+                if chunk.empty == true {
+                    self.meshes.insert(chunk_pos, None);
+                    continue;
+                }
+
+                let mesh = chunk_mesh_builder::build_mesh(self, chunk, &chunk_pos);
+                self.meshes.insert(chunk_pos, Some(mesh));
+                if !self.mesh_render_list.contains(&chunk_pos) {
+                    self.mesh_render_list.push_back(chunk_pos);
+                }
+
+                // Update the data of all our neighbors
+                let neighbour_chunk_pos = [
+                    IVec3::X,
+                    IVec3::NEG_X,
+                    IVec3::Y,
+                    IVec3::NEG_Y,
+                    IVec3::Z,
+                    IVec3::NEG_Z,
+                ]
+                .iter_mut()
+                .map(|v| *v + chunk_pos)
+                .filter(|v| self.chunks.contains_key(&v));
+                println!(
+                    "Not sure what to do with these neighbors: {:?}",
+                    neighbour_chunk_pos
+                );
+
+                chunks_rebuilt += 1;
+                if chunks_rebuilt >= MAX_REBUILD_CHUNKS_PER_FRAME {
+                    break;
+                }
+            }
+        }
+    }
+
     pub fn load_meshes(&mut self) {
         let mut meshes_loaded = 0;
         while let Some(chunk_pos) = self.mesh_load_list.pop_front() {
             // Skip if we can't hold more meshes
             if self.meshes.len() >= MAX_MESHES
-                || self.mesh_visible_list.len() >= MAX_MESHES_TO_RENDER_LIST
+                || self.mesh_render_list.len() >= MAX_MESHES_TO_RENDER_LIST
             {
                 break;
             }
@@ -219,7 +266,9 @@ impl ChunkManager {
 
                 let mesh = chunk_mesh_builder::build_mesh(self, chunk, &chunk_pos);
                 self.meshes.insert(chunk_pos, Some(mesh));
-                self.mesh_visible_list.push_back(chunk_pos);
+                if !self.mesh_render_list.contains(&chunk_pos) {
+                    self.mesh_render_list.push_back(chunk_pos);
+                }
                 // println!(
                 //     " + Mesh {} loaded (Total: {})",
                 //     chunk_pos,
@@ -230,19 +279,6 @@ impl ChunkManager {
                 if meshes_loaded >= MAX_LOAD_MESHES_PER_FRAME {
                     break;
                 }
-            }
-        }
-    }
-
-    pub fn unload_chunks(&mut self) {
-        let mut chunks_unloaded = 0;
-        while let Some(chunk_pos) = self.chunk_unload_list.pop_front() {
-            // println!(" - Chunk {} unloaded", chunk_pos);
-            self.chunks.remove(&chunk_pos);
-
-            chunks_unloaded += 1;
-            if chunks_unloaded >= MAX_UNLOAD_CHUNKS_PER_FRAME {
-                break;
             }
         }
     }
@@ -308,6 +344,10 @@ impl ChunkManager {
                         // Queue mesh
                         if !missing_neighbour_data {
                             // println!("Queue mesh {} for loading..", chunk_pos);
+                            /*if let Some(chunk) = self.chunks.get_mut(&chunk_pos) {
+                                chunk.update_voxel_types(self, &chunk_pos);
+                            }*/
+                            //self.chunks.insert(chunk_pos, chunk);
                             self.mesh_load_list.push_back(chunk_pos);
                         }
                     }
@@ -358,16 +398,11 @@ impl ChunkManager {
         }
     }
 
-    pub fn render(
-        &mut self,
-        mut commands: Commands,
-        mut meshes: ResMut<Assets<Mesh>>,
-        mut materials: ResMut<Assets<StandardMaterial>>,
-    ) {
+    pub fn render(&mut self, mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
         let mut rendered_meshes = 0;
-        while let Some(chunk_pos) = self.mesh_visible_list.pop_front() {
+        while let Some(chunk_pos) = self.mesh_render_list.pop_front() {
             if self.rendered_meshes.len() >= MAX_MESHES {
-                self.mesh_visible_list.push_back(chunk_pos);
+                self.mesh_render_list.push_back(chunk_pos);
                 return;
             }
 

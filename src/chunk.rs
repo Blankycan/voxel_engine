@@ -22,59 +22,60 @@ impl Chunk {
     pub fn new() -> Self {
         Self {
             voxels: [Voxel::default(); CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE],
-            empty: false,
+            empty: true,
         }
     }
 
-    pub fn new_random(density: f32) -> Self {
-        let mut chunk = Self {
-            voxels: [(); (CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE)].map(|_| {
-                if thread_rng().gen_range(0.0..1.0) < density {
-                    Voxel::new(true)
-                } else {
-                    Voxel::new(false)
-                }
-            }),
-            empty: false,
-        };
-        chunk.check_empty();
-        chunk
-    }
-
-    pub fn new_sphere(radius: usize) -> Self {
-        let mut chunk = Self {
-            voxels: [(); (CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE)].map(|_| Voxel::new(false)),
-            empty: false,
-        };
+    pub fn setup_random(&mut self, density: f32) {
         for x in 0..CHUNK_SIZE {
             for y in 0..CHUNK_SIZE {
                 for z in 0..CHUNK_SIZE {
-                    let (f_x, f_y, f_z) = (x as f32, y as f32, z as f32);
-                    let f_radius = radius as f32;
-                    if f32::sqrt(
-                        (f_x - f_radius) * (f_x - f_radius)
-                            + (f_y - f_radius) * (f_y - f_radius)
-                            + (f_z - f_radius) * (f_z - f_radius),
-                    ) <= f_radius
-                    {
-                        let index = Chunk::index_from(x, y, z);
-                        chunk.voxels[index].active = true;
+                    let index = Chunk::index_from(x, y, z);
+                    if let Some(voxel) = self.voxels.get_mut(index) {
+                        let active = thread_rng().gen_range(0.0..1.0) < density;
+                        voxel.active = active;
+                        voxel.voxel_type = if active {
+                            VoxelType::Default
+                        } else {
+                            VoxelType::None
+                        };
                     }
                 }
             }
         }
-        chunk
+        self.check_empty();
     }
 
-    pub fn new_perlin(chunk_pos: IVec3, seed: u32) -> Self {
-        let mut chunk = Self {
-            voxels: [(); (CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE)].map(|_| Voxel::new(false)),
-            empty: false,
-        };
+    pub fn setup_sphere(&mut self, radius: usize) {
+        for x in 0..CHUNK_SIZE {
+            for y in 0..CHUNK_SIZE {
+                for z in 0..CHUNK_SIZE {
+                    let index = Chunk::index_from(x, y, z);
+                    if let Some(voxel) = self.voxels.get_mut(index) {
+                        let (f_x, f_y, f_z) = (x as f32, y as f32, z as f32);
+                        let f_radius = radius as f32;
+                        if f32::sqrt(
+                            (f_x - f_radius) * (f_x - f_radius)
+                                + (f_y - f_radius) * (f_y - f_radius)
+                                + (f_z - f_radius) * (f_z - f_radius),
+                        ) <= f_radius
+                        {
+                            voxel.active = true;
+                        } else {
+                            voxel.active = false;
+                        }
+                    }
+                }
+            }
+        }
+        self.check_empty();
+    }
+
+    pub fn setup_perlin(&mut self, chunk_pos: IVec3, seed: u32) {
         use noise::{NoiseFn, Perlin};
 
         let perlin = Perlin::new(seed);
-        for (index, voxel) in chunk.voxels.iter_mut().enumerate() {
+        for (index, voxel) in self.voxels.iter_mut().enumerate() {
             let coord = Self::get_coordinate(index);
             let (chunk_x, chunk_y, chunk_z) = (
                 chunk_pos.x as f64 * CHUNK_SIZE as f64,
@@ -90,11 +91,13 @@ impl Chunk {
             if density > 0.3f64 {
                 voxel.active = true;
                 voxel.voxel_type = VoxelType::Grass;
+            } else {
+                voxel.active = false;
+                voxel.voxel_type = VoxelType::None;
             }
         }
 
-        chunk.check_empty();
-        chunk
+        self.check_empty();
     }
 
     pub fn get_index(coordinate: &IVec3) -> usize {

@@ -32,6 +32,7 @@ fn load_resources(
 
 fn load_data(mut chunk_manager: ResMut<ChunkManager>) {
     chunk_manager.load_chunks();
+    chunk_manager.rebuild_chunks();
     chunk_manager.load_meshes();
 }
 
@@ -51,8 +52,7 @@ fn check_visibility(
 fn render(
     commands: Commands,
     meshes: ResMut<Assets<Mesh>>,
-    materials: ResMut<Assets<StandardMaterial>>,
     mut chunk_manager: ResMut<ChunkManager>,
 ) {
-    chunk_manager.render(commands, meshes, materials);
+    chunk_manager.render(commands, meshes);
 }
