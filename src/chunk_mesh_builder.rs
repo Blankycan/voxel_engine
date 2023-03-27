@@ -40,22 +40,22 @@ pub fn build_mesh(chunk_manager: &ChunkManager, chunk: &Chunk, chunk_pos: &IVec3
                         chunk_manager.get_adjacent_voxels(chunk_pos, &voxel_pos)
                     {
                         if !left.active {
-                            faces.push(Face::new(Side::Left, voxel_pos_local));
+                            faces.push(Face::new(Side::Left, voxel_pos_local, voxel.voxel_type));
                         }
                         if !bottom.active {
-                            faces.push(Face::new(Side::Bottom, voxel_pos_local));
+                            faces.push(Face::new(Side::Bottom, voxel_pos_local, voxel.voxel_type));
                         }
                         if !back.active {
-                            faces.push(Face::new(Side::Back, voxel_pos_local));
+                            faces.push(Face::new(Side::Back, voxel_pos_local, voxel.voxel_type));
                         }
                         if !right.active {
-                            faces.push(Face::new(Side::Right, voxel_pos_local));
+                            faces.push(Face::new(Side::Right, voxel_pos_local, voxel.voxel_type));
                         }
                         if !top.active {
-                            faces.push(Face::new(Side::Top, voxel_pos_local));
+                            faces.push(Face::new(Side::Top, voxel_pos_local, voxel.voxel_type));
                         }
                         if !front.active {
-                            faces.push(Face::new(Side::Front, voxel_pos_local));
+                            faces.push(Face::new(Side::Front, voxel_pos_local, voxel.voxel_type));
                         }
                     }
                 }

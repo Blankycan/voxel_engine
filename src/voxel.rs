@@ -1,9 +1,9 @@
 #[derive(Copy, Clone, Debug)]
 pub enum VoxelType {
     Default = 0,
-    Grass,
-    Dirt,
     None,
+    Dirt,
+    Grass,
 }
 
 #[derive(Copy, Clone, Debug)]

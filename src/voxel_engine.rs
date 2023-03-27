@@ -33,6 +33,7 @@ fn render(
     meshes: ResMut<Assets<Mesh>>,
     materials: ResMut<Assets<StandardMaterial>>,
     mut chunk_manager: ResMut<ChunkManager>,
+    asset_server: Res<AssetServer>,
 ) {
-    chunk_manager.render(commands, meshes, materials);
+    chunk_manager.render(commands, meshes, materials, asset_server);
 }

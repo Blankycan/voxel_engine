@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 
 use crate::chunk::CHUNK_SIZE;
+use crate::face::Side;
 use crate::voxel::Voxel;
 use crate::{chunk::Chunk, chunk_mesh_builder};
 use bevy::prelude::*;
@@ -138,6 +139,23 @@ impl ChunkManager {
         Ok((right, left, top, bottom, front, back))
     }
 
+    pub fn get_adjacent_voxel(
+        &self,
+        side: Side,
+        chunk_pos: &IVec3,
+        voxel_pos: &IVec3,
+    ) -> Result<&Voxel, ChunkError> {
+        let (x, y, z) = (voxel_pos.x, voxel_pos.y, voxel_pos.z);
+        Ok(match side {
+            Side::Right => self.get_voxel(chunk_pos, &IVec3::new(x + 1, y, z))?,
+            Side::Left => self.get_voxel(chunk_pos, &IVec3::new(x - 1, y, z))?,
+            Side::Top => self.get_voxel(chunk_pos, &IVec3::new(x, y + 1, z))?,
+            Side::Bottom => self.get_voxel(chunk_pos, &IVec3::new(x, y - 1, z))?,
+            Side::Front => self.get_voxel(chunk_pos, &IVec3::new(x, y, z + 1))?,
+            Side::Back => self.get_voxel(chunk_pos, &IVec3::new(x, y, z - 1))?,
+        })
+    }
+
     pub fn load_chunks(&mut self) {
         let mut chunks_loaded = 0;
         while let Some(chunk_pos) = self.chunk_load_list.pop_front() {
@@ -145,7 +163,7 @@ impl ChunkManager {
                 break;
             }
 
-            let chunk: Chunk = Chunk::new_perlin(chunk_pos, 1337);
+            let mut chunk: Chunk = Chunk::new_perlin(chunk_pos, 1337);
             /*
             if chunk_pos.y == 6 {
                 use rand::Rng;
@@ -163,6 +181,8 @@ impl ChunkManager {
                 chunk = Chunk::new_random(density);
             }
             */
+            self.chunks.insert(chunk_pos, chunk);
+            chunk.update_voxel_types(self, &chunk_pos);
             self.chunks.insert(chunk_pos, chunk);
             // println!(
             //     " + Chunk {} loaded, empty: {} (Total: {})",
@@ -342,6 +362,7 @@ impl ChunkManager {
         mut commands: Commands,
         mut meshes: ResMut<Assets<Mesh>>,
         mut materials: ResMut<Assets<StandardMaterial>>,
+        asset_server: Res<AssetServer>,
     ) {
         let mut rendered_meshes = 0;
         while let Some(chunk_pos) = self.mesh_visible_list.pop_front() {
@@ -355,7 +376,13 @@ impl ChunkManager {
                     let chunk_entity = commands
                         .spawn(MaterialMeshBundle {
                             mesh: meshes.add(mesh.clone()),
-                            material: materials.add(Color::WHITE.into()),
+                            material: materials.add(StandardMaterial {
+                                base_color: Color::WHITE.into(),
+                                base_color_texture: Some(asset_server.load("spritesheet.png")),
+                                alpha_mode: AlphaMode::Blend,
+                                unlit: false,
+                                ..default()
+                            }),
                             transform: Transform::from_xyz(
                                 chunk_pos.x as f32 * CHUNK_SIZE as f32,
                                 chunk_pos.y as f32 * CHUNK_SIZE as f32,

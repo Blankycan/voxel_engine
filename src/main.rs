@@ -14,18 +14,23 @@ mod chunk_mesh_builder;
 pub mod face;
 pub mod voxel;
 mod voxel_engine;
+pub mod voxel_textures;
 
 use voxel_engine::VoxelEnginePlugin;
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins.set(WindowPlugin {
-            primary_window: Some(Window {
-                present_mode: PresentMode::Immediate,
-                ..default()
-            }),
-            ..default()
-        }))
+        .add_plugins(
+            DefaultPlugins
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        present_mode: PresentMode::Immediate,
+                        ..default()
+                    }),
+                    ..default()
+                })
+                .set(ImagePlugin::default_nearest()),
+        )
         .add_plugin(FlyCameraPlugin)
         .add_plugin(DebugInfoPlugin)
         .add_plugin(VoxelEnginePlugin)

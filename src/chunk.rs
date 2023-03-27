@@ -1,6 +1,8 @@
 use bevy::prelude::IVec3;
 use rand::prelude::*;
 
+use crate::{chunk_manager::ChunkManager, face::Side, voxel::VoxelType};
+
 use super::voxel::Voxel;
 
 pub const CHUNK_SIZE: usize = 16;
@@ -87,6 +89,7 @@ impl Chunk {
             let density = perlin.get([x, y, z]);
             if density > 0.3f64 {
                 voxel.active = true;
+                voxel.voxel_type = VoxelType::Grass;
             }
         }
 
@@ -112,6 +115,9 @@ impl Chunk {
     pub fn get_voxel(&self, index: usize) -> Option<&Voxel> {
         self.voxels.get(index)
     }
+    pub fn get_mut_voxel(&mut self, index: usize) -> Option<&mut Voxel> {
+        self.voxels.get_mut(index)
+    }
 
     pub fn check_empty(&mut self) -> bool {
         for x in 0..CHUNK_SIZE {
@@ -129,5 +135,39 @@ impl Chunk {
         }
         self.empty = true;
         true
+    }
+
+    pub fn update_voxel_types(&mut self, chunk_manager: &ChunkManager, chunk_pos: &IVec3) {
+        for x in 0..CHUNK_SIZE {
+            for y in 0..CHUNK_SIZE {
+                for z in 0..CHUNK_SIZE {
+                    let index = Chunk::index_from(x, y, z);
+                    if let Some(voxel) = self.voxels.get_mut(index) {
+                        if voxel.active {
+                            let voxel_pos = IVec3::new(x as i32, y as i32, z as i32);
+                            voxel.voxel_type = match voxel.voxel_type {
+                                // If Grass and has a block on top, make into Dirt
+                                VoxelType::Grass => {
+                                    if let Ok(top_voxel) = chunk_manager.get_adjacent_voxel(
+                                        Side::Top,
+                                        chunk_pos,
+                                        &voxel_pos,
+                                    ) {
+                                        if top_voxel.active {
+                                            VoxelType::Dirt
+                                        } else {
+                                            VoxelType::Grass
+                                        }
+                                    } else {
+                                        VoxelType::Grass
+                                    }
+                                }
+                                _ => voxel.voxel_type,
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

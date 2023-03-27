@@ -1,5 +1,7 @@
 use bevy::prelude::{Vec2, Vec3};
 
+use crate::{voxel::VoxelType, voxel_textures::*};
+
 pub const HALF_SIZE: f32 = 0.5;
 pub const UVS: [Vec2; 4] = [
     Vec2::new(1.0, 0.0),
@@ -38,7 +40,7 @@ pub struct Face {
 }
 
 impl Face {
-    pub fn new(side: Side, pos: Vec3) -> Self {
+    pub fn new(side: Side, pos: Vec3, voxel_type: VoxelType) -> Self {
         let vertices = match side {
             Side::Left => [
                 Vec3::new(pos.x - HALF_SIZE, pos.y + HALF_SIZE, pos.z + HALF_SIZE),
@@ -79,7 +81,7 @@ impl Face {
         };
 
         Self {
-            uv: UVS,
+            uv: get_voxel_type_uv(voxel_type, side),
             normal: get_normal(side),
             vertices: vertices,
             side: side,
