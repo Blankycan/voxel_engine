@@ -28,10 +28,14 @@ fn load_resources(
 ) {
     let spritesheet_handle = asset_server.load("spritesheet.png");
     let material_handle = materials.add(StandardMaterial {
-        base_color: Color::rgba(1.0, 1.0, 1.0, 0.5),
+        base_color: Color::rgba(1.0, 1.0, 1.0, 1.0),
         base_color_texture: Some(spritesheet_handle.clone()),
         alpha_mode: AlphaMode::Opaque,
         unlit: false,
+        fog_enabled: true,
+        metallic: 0.0,
+        perceptual_roughness: 1.0,
+        reflectance: 0.125,
         ..default()
     });
 
