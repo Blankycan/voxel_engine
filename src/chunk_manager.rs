@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use crate::chunk::*;
 use crate::face::Side;
-use crate::voxel::{Voxel, VoxelType};
+use crate::voxel::Voxel;
 use crate::{chunk::Chunk, chunk_mesh_builder};
 use bevy::asset::HandleId;
 use bevy::prelude::*;
@@ -369,12 +369,11 @@ impl ChunkManager {
 
                         // Queue mesh
                         if !missing_neighbour_data {
-                            // println!("Queue mesh {} for loading..", chunk_pos);
-                            //self.update_chunk_voxel_data(&chunk_pos);
-                            //if let Some(chunk) = self.chunks.get_mut(&chunk_pos) {}
-                            let chunk = self.chunks.get_mut(&chunk_pos).unwrap();
+                            // Copy the chunk, update voxel data, and put it back.. Not very effective
+                            let mut chunk = *self.chunks.get(&chunk_pos).unwrap();
                             chunk.update_voxel_data(self, &chunk_pos);
-                            //self.chunks.insert(chunk_pos, chunk);
+                            self.chunks.insert(chunk_pos, chunk);
+
                             self.mesh_load_list.push_back(chunk_pos);
                         }
                     }
