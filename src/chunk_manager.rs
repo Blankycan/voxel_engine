@@ -371,10 +371,11 @@ impl ChunkManager {
                         // Queue mesh
                         if !missing_neighbour_data {
                             // Copy the chunk, update voxel data, and put it back.. Not very effective
-                            let mut chunk = *self.chunks.get(&chunk_pos).unwrap();
-                            chunk.update_voxel_data(self, &chunk_pos);
-                            self.chunks.insert(chunk_pos, chunk);
-
+                            if let Some(chunk) = self.chunks.get(&chunk_pos) {
+                                let mut updated_chunk = *chunk;
+                                updated_chunk.update_voxel_data(self, &chunk_pos);
+                                self.chunks.insert(chunk_pos, updated_chunk);
+                            }
                             self.mesh_load_list.push_back(chunk_pos);
                         }
                     }
