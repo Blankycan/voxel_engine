@@ -7,16 +7,15 @@ pub struct VoxelEnginePlugin;
 impl Plugin for VoxelEnginePlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(load_resources)
-            .add_systems(
-                (
-                    load_data,
-                    rebuild_data,
-                    unload_data,
-                    check_visibility,
-                    render,
-                )
-                    .chain(),
-            )
+            .add_systems((
+                load_chunks,
+                load_meshes,
+                rebuild_data,
+                unload_chunks,
+                unload_meshes,
+                check_visibility,
+                render,
+            ))
             .init_resource::<ChunkManager>();
     }
 }
@@ -43,8 +42,11 @@ fn load_resources(
     chunk_manager.material_handle = material_handle;
 }
 
-fn load_data(mut chunk_manager: ResMut<ChunkManager>) {
+fn load_chunks(mut chunk_manager: ResMut<ChunkManager>) {
     chunk_manager.load_chunks();
+}
+
+fn load_meshes(mut chunk_manager: ResMut<ChunkManager>) {
     chunk_manager.load_meshes();
 }
 
@@ -52,8 +54,11 @@ fn rebuild_data(commands: Commands, mut chunk_manager: ResMut<ChunkManager>) {
     chunk_manager.rebuild_chunks(commands);
 }
 
-pub fn unload_data(commands: Commands, mut chunk_manager: ResMut<ChunkManager>) {
+pub fn unload_chunks(mut chunk_manager: ResMut<ChunkManager>) {
     chunk_manager.unload_chunks();
+}
+
+pub fn unload_meshes(commands: Commands, mut chunk_manager: ResMut<ChunkManager>) {
     chunk_manager.unload_meshes(commands);
 }
 
