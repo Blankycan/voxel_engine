@@ -5,6 +5,7 @@ use crate::face::Side;
 use crate::voxel::Voxel;
 use crate::{chunk::Chunk, chunk_mesh_builder};
 use bevy::asset::HandleId;
+use bevy::pbr::NotShadowCaster;
 use bevy::prelude::*;
 use bevy::prelude::{Commands, Transform};
 use bevy::render::primitives::Frustum;
@@ -435,16 +436,19 @@ impl ChunkManager {
             if let Some(mesh_option) = self.meshes.get(&chunk_pos) {
                 if let Some(mesh) = mesh_option {
                     let chunk_entity = commands
-                        .spawn(MaterialMeshBundle {
-                            mesh: meshes.add(mesh.clone()),
-                            material: self.material_handle.clone(),
-                            transform: Transform::from_xyz(
-                                chunk_pos.x as f32 * CHUNK_SIZE as f32,
-                                chunk_pos.y as f32 * CHUNK_SIZE as f32,
-                                chunk_pos.z as f32 * CHUNK_SIZE as f32,
-                            ),
-                            ..default()
-                        })
+                        .spawn((
+                            MaterialMeshBundle {
+                                mesh: meshes.add(mesh.clone()),
+                                material: self.material_handle.clone(),
+                                transform: Transform::from_xyz(
+                                    chunk_pos.x as f32 * CHUNK_SIZE as f32,
+                                    chunk_pos.y as f32 * CHUNK_SIZE as f32,
+                                    chunk_pos.z as f32 * CHUNK_SIZE as f32,
+                                ),
+                                ..default()
+                            },
+                            NotShadowCaster,
+                        ))
                         .id();
                     self.rendered_meshes.insert(chunk_pos, chunk_entity);
 

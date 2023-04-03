@@ -52,10 +52,13 @@ fn setup(mut commands: Commands) {
         .insert(Name::new("Fly Camera"));
 
     commands.spawn(DirectionalLightBundle {
-        directional_light: DirectionalLight::default(),
+        directional_light: DirectionalLight {
+            shadows_enabled: true,
+            ..default()
+        },
         transform: Transform {
-            translation: Vec3::new(0.0, 2.0, 0.0),
-            rotation: Quat::from_rotation_x(-1.5),
+            translation: Vec3::new(-1.0, 2.0, 0.0),
+            rotation: Quat::from_rotation_x(-1.5) * Quat::from_rotation_y(-0.3),
             ..default()
         }
         .into(),
