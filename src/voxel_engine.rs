@@ -1,12 +1,15 @@
-use bevy::{prelude::*, render::primitives::Frustum};
+use bevy::{prelude::*, render::primitives::Frustum, window::PrimaryWindow};
+use bevy_rapier3d::prelude::*;
 
-use crate::chunk_manager::ChunkManager;
+use crate::{chunk_manager::ChunkManager, MyCamera};
 
 pub struct VoxelEnginePlugin;
 
 impl Plugin for VoxelEnginePlugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(load_resources)
+        app.add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
+            // .add_plugin(RapierDebugRenderPlugin::default())
+            .add_startup_system(load_resources)
             .add_systems((
                 load_chunks,
                 load_meshes,
@@ -16,6 +19,7 @@ impl Plugin for VoxelEnginePlugin {
                 check_visibility,
                 render,
             ))
+            .add_system(mouse_interaction)
             .init_resource::<ChunkManager>();
     }
 }
@@ -76,4 +80,34 @@ fn render(
     mut chunk_manager: ResMut<ChunkManager>,
 ) {
     chunk_manager.render(commands, meshes);
+}
+
+fn mouse_interaction(
+    _commands: Commands,
+    mouse: Res<Input<MouseButton>>,
+    camera_query: Query<(&Camera, &GlobalTransform), With<MyCamera>>,
+    window_query: Query<&Window, With<PrimaryWindow>>,
+    rapier_context: Res<RapierContext>,
+) {
+    if mouse.just_pressed(MouseButton::Left) {
+        let Ok(window) = window_query.get_single() else { return; };
+        let Some(cursor_position) = window.cursor_position() else { return; };
+        let Ok((camera, camera_global_transform)) = camera_query.get_single() else { return; };
+        let Some(ray) = camera.viewport_to_world(camera_global_transform, cursor_position) else { return; };
+        println!(
+            "screen: {}, {} ray: {}",
+            cursor_position.x, cursor_position.y, ray.origin
+        );
+
+        if let Some((entity, toi)) = rapier_context.cast_ray(
+            ray.origin,
+            ray.direction,
+            f32::MAX,
+            true,
+            QueryFilter::new(),
+        ) {
+            let hit_point = ray.get_point(toi);
+            println!("Entity {:?} hit at point {}", entity, hit_point);
+        }
+    }
 }

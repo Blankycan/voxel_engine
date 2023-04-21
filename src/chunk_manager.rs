@@ -12,6 +12,7 @@ use bevy::render::primitives::Frustum;
 use bevy::utils::hashbrown::HashMap;
 use bevy::utils::Uuid;
 use bevy_mod_picking::PickableBundle;
+use bevy_rapier3d::prelude::{Collider, ComputedColliderShape};
 
 pub const MAX_CHUNKS: usize = 10000;
 pub const MAX_MESHES: usize = 10000;
@@ -437,6 +438,10 @@ impl ChunkManager {
 
             if let Some(mesh_option) = self.meshes.get(&chunk_pos) {
                 if let Some(mesh) = mesh_option {
+                    if mesh.count_vertices() == 0 {
+                        continue;
+                    };
+                    let Some(collider) = Collider::from_bevy_mesh(mesh, &ComputedColliderShape::TriMesh) else { continue; };
                     let chunk_entity = commands
                         .spawn((
                             MaterialMeshBundle {
@@ -452,6 +457,7 @@ impl ChunkManager {
                             NotShadowCaster,
                         ))
                         .insert(PickableBundle::default())
+                        .insert(collider)
                         .id();
                     self.rendered_meshes.insert(chunk_pos, chunk_entity);
 
