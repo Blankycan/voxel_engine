@@ -2,6 +2,7 @@ extern crate lazy_static;
 
 use bevy::prelude::*;
 use bevy::window::PresentMode;
+use bevy_mod_picking::*;
 
 mod debug_info;
 mod fly_camera;
@@ -34,6 +35,7 @@ fn main() {
         .add_plugin(FlyCameraPlugin)
         .add_plugin(DebugInfoPlugin)
         .add_plugin(VoxelEnginePlugin)
+        .add_plugins(DefaultPickingPlugins)
         .add_startup_system(setup)
         .run();
 }
@@ -49,6 +51,7 @@ fn setup(mut commands: Commands) {
         })
         .insert(FlyCamera::default())
         .insert(MyCamera)
+        .insert(PickingCameraBundle::default())
         .insert(Name::new("Fly Camera"));
 
     commands.spawn(DirectionalLightBundle {

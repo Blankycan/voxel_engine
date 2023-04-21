@@ -11,6 +11,7 @@ use bevy::prelude::{Commands, Transform};
 use bevy::render::primitives::Frustum;
 use bevy::utils::hashbrown::HashMap;
 use bevy::utils::Uuid;
+use bevy_mod_picking::PickableBundle;
 
 pub const MAX_CHUNKS: usize = 10000;
 pub const MAX_MESHES: usize = 10000;
@@ -450,6 +451,7 @@ impl ChunkManager {
                             },
                             NotShadowCaster,
                         ))
+                        .insert(PickableBundle::default())
                         .id();
                     self.rendered_meshes.insert(chunk_pos, chunk_entity);
 

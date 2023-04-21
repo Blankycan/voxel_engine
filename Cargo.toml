@@ -16,6 +16,7 @@ opt-level = 3
 [dependencies]
 bevy = "0.10.0"
 bevy_egui = "0.20.1"
+bevy_mod_picking = "0.12.0"
 lazy_static = "1.4.0"
 noise = "0.8.2"
 rand = "0.8.5"
