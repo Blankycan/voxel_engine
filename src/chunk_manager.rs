@@ -490,6 +490,23 @@ impl ChunkManager {
             .find_map(|(key, val)| if *val == entity { Some(*key) } else { None })
     }
 
+    pub fn get_voxel_position(&self, chunk_pos: &IVec3, hit_pos: &Vec3) -> Option<Vec3> {
+        // Convert hit position to voxel position, and find the correct chunk
+        let mut voxel_pos = IVec3::new(
+            hit_pos.x.round() as i32 - (chunk_pos.x * CHUNK_SIZE as i32),
+            hit_pos.y.round() as i32 - (chunk_pos.y * CHUNK_SIZE as i32),
+            hit_pos.z.round() as i32 - (chunk_pos.z * CHUNK_SIZE as i32),
+        );
+        let mut new_chunk_pos = *chunk_pos;
+        ChunkManager::make_coords_valid(&mut new_chunk_pos, &mut voxel_pos);
+
+        Some(Vec3::new(
+            new_chunk_pos.x as f32 * CHUNK_SIZE as f32 + voxel_pos.x as f32,
+            new_chunk_pos.y as f32 * CHUNK_SIZE as f32 + voxel_pos.y as f32,
+            new_chunk_pos.z as f32 * CHUNK_SIZE as f32 + voxel_pos.z as f32,
+        ))
+    }
+
     pub fn update_voxel(
         &mut self,
         chunk_pos: &IVec3,

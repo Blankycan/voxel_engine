@@ -1,4 +1,12 @@
-use bevy::{prelude::*, render::primitives::Frustum, window::PrimaryWindow};
+use bevy::{
+    pbr::{
+        wireframe::{Wireframe, WireframePlugin},
+        NotShadowCaster,
+    },
+    prelude::*,
+    render::primitives::Frustum,
+    window::PrimaryWindow,
+};
 use bevy_rapier3d::prelude::*;
 
 use crate::{chunk_manager::ChunkManager, voxel::VoxelType, MyCamera};
@@ -8,8 +16,10 @@ pub struct VoxelEnginePlugin;
 impl Plugin for VoxelEnginePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
+            .add_plugin(WireframePlugin)
             // .add_plugin(RapierDebugRenderPlugin::default())
             .add_startup_system(load_resources)
+            .add_startup_system(setup_voxel_indicator)
             .add_systems((
                 load_chunks,
                 load_meshes,
@@ -44,6 +54,35 @@ fn load_resources(
 
     chunk_manager.spritesheet_handle = spritesheet_handle;
     chunk_manager.material_handle = material_handle;
+}
+
+#[derive(Component)]
+pub struct VoxelIndicator;
+
+fn setup_voxel_indicator(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    commands.spawn((
+        PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
+            material: materials.add(StandardMaterial {
+                base_color: Color::rgba(1.0, 1.0, 1.0, 0.1),
+                alpha_mode: AlphaMode::Blend,
+                unlit: true,
+                fog_enabled: false,
+                metallic: 0.0,
+                perceptual_roughness: 1.0,
+                reflectance: 0.125,
+                ..default()
+            }),
+            ..default()
+        },
+        Wireframe,
+        VoxelIndicator,
+        NotShadowCaster,
+    ));
 }
 
 fn load_chunks(mut chunk_manager: ResMut<ChunkManager>) {
@@ -89,6 +128,7 @@ fn mouse_interaction(
     window_query: Query<&Window, With<PrimaryWindow>>,
     rapier_context: Res<RapierContext>,
     mut chunk_manager: ResMut<ChunkManager>,
+    mut voxel_indicator_query: Query<&mut Transform, With<VoxelIndicator>>,
 ) {
     let Ok(window) = window_query.get_single() else { return; };
     let Some(cursor_position) = window.cursor_position() else { return; };
@@ -111,15 +151,20 @@ fn mouse_interaction(
                     entity, hit_point, toi
                 );
                 chunk_manager.update_voxel(&chunk_pos, &hit_point, true, VoxelType::Grass);
-            }
-
-            if mouse.just_pressed(MouseButton::Right) {
+            } else if mouse.just_pressed(MouseButton::Right) {
                 let hit_point = ray.get_point(toi + 0.01);
                 println!(
                     "Entity {:?} hit at point {} toi {}, Remove voxel",
                     entity, hit_point, toi
                 );
                 chunk_manager.update_voxel(&chunk_pos, &hit_point, false, VoxelType::None);
+            } else {
+                let hit_point = ray.get_point(toi - 0.01);
+                if let Some(position) = chunk_manager.get_voxel_position(&chunk_pos, &hit_point) {
+                    let Ok(mut voxel_indicator_transform) = voxel_indicator_query.get_single_mut() else { return; };
+                    println!("Voxel pos {}", position);
+                    voxel_indicator_transform.translation = position;
+                }
             }
         }
     }
