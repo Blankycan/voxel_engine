@@ -36,8 +36,14 @@ pub fn build_mesh(chunk_manager: &ChunkManager, chunk: &Chunk, chunk_pos: &IVec3
                     }
                     */
 
-                    if let Ok((right, left, top, bottom, front, back)) =
-                        chunk_manager.get_adjacent_voxels(chunk_pos, &voxel_pos)
+                    if let Ok((
+                        (right, _),
+                        (left, _),
+                        (top, _),
+                        (bottom, _),
+                        (front, _),
+                        (back, _),
+                    )) = chunk_manager.get_adjacent_voxels(chunk_pos, &voxel_pos)
                     {
                         if !left.active {
                             faces.push(Face::new(Side::Left, voxel_pos_local, voxel.voxel_type));

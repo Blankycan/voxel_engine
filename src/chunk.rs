@@ -148,25 +148,24 @@ impl Chunk {
                     if let Some(voxel) = self.voxels.get_mut(index) {
                         if voxel.active {
                             let voxel_pos = IVec3::new(x as i32, y as i32, z as i32);
-                            voxel.voxel_type = match voxel.voxel_type {
-                                // If Grass and has a block on top, make into Dirt
-                                VoxelType::Grass => {
-                                    if let Ok(top_voxel) = chunk_manager.get_adjacent_voxel(
-                                        Side::Top,
-                                        chunk_pos,
-                                        &voxel_pos,
-                                    ) {
-                                        if top_voxel.active {
-                                            VoxelType::Dirt
+                            voxel.voxel_type =
+                                match voxel.voxel_type {
+                                    // If Grass and has a block on top, make into Dirt
+                                    VoxelType::Grass => {
+                                        if let Ok((top_voxel, _)) = chunk_manager
+                                            .get_adjacent_voxel(Side::Top, chunk_pos, &voxel_pos)
+                                        {
+                                            if top_voxel.active {
+                                                VoxelType::Dirt
+                                            } else {
+                                                VoxelType::Grass
+                                            }
                                         } else {
                                             VoxelType::Grass
                                         }
-                                    } else {
-                                        VoxelType::Grass
                                     }
+                                    _ => voxel.voxel_type,
                                 }
-                                _ => voxel.voxel_type,
-                            }
                         }
                     }
                 }

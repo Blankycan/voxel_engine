@@ -117,7 +117,11 @@ impl ChunkManager {
         }
     }
 
-    pub fn get_voxel(&self, chunk_pos: &IVec3, voxel_pos: &IVec3) -> Result<&Voxel, ChunkError> {
+    pub fn get_voxel(
+        &self,
+        chunk_pos: &IVec3,
+        voxel_pos: &IVec3,
+    ) -> Result<(&Voxel, IVec3), ChunkError> {
         let mut new_chunk_pos = *chunk_pos;
         let mut new_voxel_pos = *voxel_pos;
         ChunkManager::make_coords_valid(&mut new_chunk_pos, &mut new_voxel_pos);
@@ -125,7 +129,7 @@ impl ChunkManager {
         if let Some(chunk) = self.chunks.get(&new_chunk_pos) {
             // println!("Got the chunk {}", chunk_pos);
             if let Some(voxel) = chunk.get_voxel(Chunk::get_index(&new_voxel_pos)) {
-                return Ok(voxel);
+                return Ok((voxel, new_chunk_pos));
             }
             return Err(ChunkError::NoVoxel);
         }
@@ -136,7 +140,17 @@ impl ChunkManager {
         &self,
         chunk_pos: &IVec3,
         voxel_pos: &IVec3,
-    ) -> Result<(&Voxel, &Voxel, &Voxel, &Voxel, &Voxel, &Voxel), ChunkError> {
+    ) -> Result<
+        (
+            (&Voxel, IVec3),
+            (&Voxel, IVec3),
+            (&Voxel, IVec3),
+            (&Voxel, IVec3),
+            (&Voxel, IVec3),
+            (&Voxel, IVec3),
+        ),
+        ChunkError,
+    > {
         let (x, y, z) = (voxel_pos.x, voxel_pos.y, voxel_pos.z);
         let right = self.get_voxel(chunk_pos, &IVec3::new(x + 1, y, z))?;
         let left = self.get_voxel(chunk_pos, &IVec3::new(x - 1, y, z))?;
@@ -152,7 +166,7 @@ impl ChunkManager {
         side: Side,
         chunk_pos: &IVec3,
         voxel_pos: &IVec3,
-    ) -> Result<&Voxel, ChunkError> {
+    ) -> Result<(&Voxel, IVec3), ChunkError> {
         let (x, y, z) = (voxel_pos.x, voxel_pos.y, voxel_pos.z);
         Ok(match side {
             Side::Right => self.get_voxel(chunk_pos, &IVec3::new(x + 1, y, z))?,
@@ -249,23 +263,23 @@ impl ChunkManager {
                     self.mesh_render_list.push_back(chunk_pos);
                 }
 
-                // Update the data of all our neighbors
-                let neighbour_chunk_pos: Vec<IVec3> = [
-                    IVec3::X,
-                    IVec3::NEG_X,
-                    IVec3::Y,
-                    IVec3::NEG_Y,
-                    IVec3::Z,
-                    IVec3::NEG_Z,
-                ]
-                .iter_mut()
-                .map(|v| *v + chunk_pos)
-                .filter(|v| self.chunks.contains_key(&v))
-                .collect();
-                println!(
-                    "Not sure what to do with these neighbors: {:?}",
-                    neighbour_chunk_pos
-                );
+                // Update the data of all our neighbors?
+                // let neighbour_chunk_pos: Vec<IVec3> = [
+                //     IVec3::X,
+                //     IVec3::NEG_X,
+                //     IVec3::Y,
+                //     IVec3::NEG_Y,
+                //     IVec3::Z,
+                //     IVec3::NEG_Z,
+                // ]
+                // .iter_mut()
+                // .map(|v| *v + chunk_pos)
+                // .filter(|v| self.chunks.contains_key(&v))
+                // .collect();
+                // println!(
+                //     "Not sure what to do with these neighbors: {:?}",
+                //     neighbour_chunk_pos
+                // );
 
                 chunks_rebuilt += 1;
                 if chunks_rebuilt >= MAX_REBUILD_CHUNKS_PER_FRAME {
@@ -476,13 +490,19 @@ impl ChunkManager {
             .find_map(|(key, val)| if *val == entity { Some(*key) } else { None })
     }
 
-    pub fn handle_click(&mut self, chunk_pos: &IVec3, hit_pos: &Vec3) {
+    pub fn update_voxel(
+        &mut self,
+        chunk_pos: &IVec3,
+        hit_pos: &Vec3,
+        active: bool,
+        voxel_type: VoxelType,
+    ) {
+        // Convert hit position to voxel position, and find the correct chunk
         let mut voxel_pos = IVec3::new(
             hit_pos.x.round() as i32 - (chunk_pos.x * CHUNK_SIZE as i32),
             hit_pos.y.round() as i32 - (chunk_pos.y * CHUNK_SIZE as i32),
             hit_pos.z.round() as i32 - (chunk_pos.z * CHUNK_SIZE as i32),
         );
-        println!("Looking for Voxel pos {} in chunk {}", voxel_pos, chunk_pos);
         let mut new_chunk_pos = *chunk_pos;
         ChunkManager::make_coords_valid(&mut new_chunk_pos, &mut voxel_pos);
 
@@ -490,16 +510,50 @@ impl ChunkManager {
         let mut updated_chunk = chunk.clone();
 
         println!(
-            "Corrected Voxel pos {} in chunk {}",
+            "Updating Voxel pos {} in chunk {}",
             voxel_pos, new_chunk_pos
         );
         let voxel_index = Chunk::get_index(&voxel_pos);
         if let Some(mut voxel) = updated_chunk.get_mut_voxel(voxel_index) {
-            voxel.active = true;
-            voxel.voxel_type = VoxelType::Default;
-            updated_chunk.update_voxel_data(self, &new_chunk_pos);
+            // Update the voxel, and set this as our new chunk data
+            voxel.active = active;
+            voxel.voxel_type = voxel_type;
             self.chunks.insert(new_chunk_pos, updated_chunk);
+
+            // Then let the chunk look over its voxels before updating it again and queueing to rebuild
+            updated_chunk.update_voxel_data(self, &new_chunk_pos);
+            self.chunks.insert(new_chunk_pos, updated_chunk); // Very unoptimized to have to set it twice
             self.chunk_rebuild_list.push_back(new_chunk_pos);
+
+            // Update neighbor chunks if we're next to any
+            if let Ok((
+                (_, right_chunk_pos),
+                (_, left_chunk_pos),
+                (_, top_chunk_pos),
+                (_, bottom_chunk_pos),
+                (_, front_chunk_pos),
+                (_, back_chunk_pos),
+            )) = self.get_adjacent_voxels(&new_chunk_pos, &voxel_pos)
+            {
+                if right_chunk_pos != new_chunk_pos {
+                    self.chunk_rebuild_list.push_back(right_chunk_pos);
+                }
+                if left_chunk_pos != new_chunk_pos {
+                    self.chunk_rebuild_list.push_back(left_chunk_pos);
+                }
+                if top_chunk_pos != new_chunk_pos {
+                    self.chunk_rebuild_list.push_back(top_chunk_pos);
+                }
+                if bottom_chunk_pos != new_chunk_pos {
+                    self.chunk_rebuild_list.push_back(bottom_chunk_pos);
+                }
+                if front_chunk_pos != new_chunk_pos {
+                    self.chunk_rebuild_list.push_back(front_chunk_pos);
+                }
+                if back_chunk_pos != new_chunk_pos {
+                    self.chunk_rebuild_list.push_back(back_chunk_pos);
+                }
+            }
         }
     }
 }
