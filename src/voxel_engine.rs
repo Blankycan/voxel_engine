@@ -88,16 +88,13 @@ fn mouse_interaction(
     camera_query: Query<(&Camera, &GlobalTransform), With<MyCamera>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
     rapier_context: Res<RapierContext>,
+    mut chunk_manager: ResMut<ChunkManager>,
 ) {
     if mouse.just_pressed(MouseButton::Left) {
         let Ok(window) = window_query.get_single() else { return; };
         let Some(cursor_position) = window.cursor_position() else { return; };
         let Ok((camera, camera_global_transform)) = camera_query.get_single() else { return; };
         let Some(ray) = camera.viewport_to_world(camera_global_transform, cursor_position) else { return; };
-        println!(
-            "screen: {}, {} ray: {}",
-            cursor_position.x, cursor_position.y, ray.origin
-        );
 
         if let Some((entity, toi)) = rapier_context.cast_ray(
             ray.origin,
@@ -106,8 +103,13 @@ fn mouse_interaction(
             true,
             QueryFilter::new(),
         ) {
-            let hit_point = ray.get_point(toi);
-            println!("Entity {:?} hit at point {}", entity, hit_point);
+            let hit_point = ray.get_point(toi - 0.01);
+            println!("Entity {:?} hit at point {} toi {}", entity, hit_point, toi);
+
+            // Check if it's a chunk we're interacting with
+            if let Some(chunk_pos) = chunk_manager.get_chunk_pos_by_entity(entity) {
+                chunk_manager.handle_click(&chunk_pos, &hit_point);
+            }
         }
     }
 }

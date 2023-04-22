@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use crate::chunk::*;
 use crate::face::Side;
-use crate::voxel::Voxel;
+use crate::voxel::{Voxel, VoxelType};
 use crate::{chunk::Chunk, chunk_mesh_builder};
 use bevy::asset::HandleId;
 use bevy::pbr::NotShadowCaster;
@@ -470,47 +470,36 @@ impl ChunkManager {
         }
     }
 
-    /*
-    pub fn update_chunk_voxel_data(&mut self, chunk_pos: &IVec3) {
-        if let Some(chunk) = self.chunks.get_mut(chunk_pos) {
-            for x in 0..CHUNK_SIZE {
-                for y in 0..CHUNK_SIZE {
-                    for z in 0..CHUNK_SIZE {
-                        let index = Chunk::index_from(x, y, z);
-                        if let Some(voxel) = chunk.voxels.get_mut(index) {
-                            if voxel.active {
-                                let voxel_pos = IVec3::new(x as i32, y as i32, z as i32);
-                                voxel.voxel_type =
-                                    self.update_voxel_data(chunk_pos, &voxel_pos, voxel.voxel_type);
-                            }
-                        }
-                    }
-                }
-            }
-        }
+    pub fn get_chunk_pos_by_entity(&self, entity: Entity) -> Option<IVec3> {
+        self.rendered_meshes
+            .iter()
+            .find_map(|(key, val)| if *val == entity { Some(*key) } else { None })
     }
 
-    fn update_voxel_data(
-        &self,
-        chunk_pos: &IVec3,
-        voxel_pos: &IVec3,
-        voxel_type: VoxelType,
-    ) -> VoxelType {
-        match voxel_type {
-            // If Grass and has a block on top, make into Dirt
-            VoxelType::Grass => {
-                if let Ok(top_voxel) = self.get_adjacent_voxel(Side::Top, chunk_pos, &voxel_pos) {
-                    if top_voxel.active {
-                        VoxelType::Dirt
-                    } else {
-                        VoxelType::Grass
-                    }
-                } else {
-                    VoxelType::Grass
-                }
-            }
-            _ => voxel_type,
+    pub fn handle_click(&mut self, chunk_pos: &IVec3, hit_pos: &Vec3) {
+        let mut voxel_pos = IVec3::new(
+            hit_pos.x.round() as i32 - (chunk_pos.x * CHUNK_SIZE as i32),
+            hit_pos.y.round() as i32 - (chunk_pos.y * CHUNK_SIZE as i32),
+            hit_pos.z.round() as i32 - (chunk_pos.z * CHUNK_SIZE as i32),
+        );
+        println!("Looking for Voxel pos {} in chunk {}", voxel_pos, chunk_pos);
+        let mut new_chunk_pos = *chunk_pos;
+        ChunkManager::make_coords_valid(&mut new_chunk_pos, &mut voxel_pos);
+
+        let Some(chunk) = self.chunks.get(&new_chunk_pos) else { return; };
+        let mut updated_chunk = chunk.clone();
+
+        println!(
+            "Corrected Voxel pos {} in chunk {}",
+            voxel_pos, new_chunk_pos
+        );
+        let voxel_index = Chunk::get_index(&voxel_pos);
+        if let Some(mut voxel) = updated_chunk.get_mut_voxel(voxel_index) {
+            voxel.active = true;
+            voxel.voxel_type = VoxelType::Default;
+            updated_chunk.update_voxel_data(self, &new_chunk_pos);
+            self.chunks.insert(new_chunk_pos, updated_chunk);
+            self.chunk_rebuild_list.push_back(new_chunk_pos);
         }
     }
-    */
 }

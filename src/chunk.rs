@@ -172,5 +172,6 @@ impl Chunk {
                 }
             }
         }
+        self.check_empty();
     }
 }
