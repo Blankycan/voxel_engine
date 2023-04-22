@@ -128,7 +128,10 @@ fn mouse_interaction(
     window_query: Query<&Window, With<PrimaryWindow>>,
     rapier_context: Res<RapierContext>,
     mut chunk_manager: ResMut<ChunkManager>,
-    mut voxel_indicator_query: Query<&mut Transform, With<VoxelIndicator>>,
+    mut voxel_indicator_query: Query<
+        (&mut Transform, &mut Handle<StandardMaterial>),
+        With<VoxelIndicator>,
+    >,
 ) {
     let Ok(window) = window_query.get_single() else { return; };
     let Some(cursor_position) = window.cursor_position() else { return; };
@@ -144,26 +147,34 @@ fn mouse_interaction(
     ) {
         // Check if it's a chunk we're interacting with
         if let Some(chunk_pos) = chunk_manager.get_chunk_pos_by_entity(entity) {
-            if mouse.just_pressed(MouseButton::Left) {
-                let hit_point = ray.get_point(toi - 0.01);
-                println!(
-                    "Entity {:?} hit at point {} toi {}, Add voxel",
-                    entity, hit_point, toi
-                );
-                chunk_manager.update_voxel(&chunk_pos, &hit_point, true, VoxelType::Grass);
-            } else if mouse.just_pressed(MouseButton::Right) {
-                let hit_point = ray.get_point(toi + 0.01);
-                println!(
-                    "Entity {:?} hit at point {} toi {}, Remove voxel",
-                    entity, hit_point, toi
-                );
-                chunk_manager.update_voxel(&chunk_pos, &hit_point, false, VoxelType::None);
-            } else {
+            // Left mouse click - Create voxels
+            if mouse.pressed(MouseButton::Left) {
                 let hit_point = ray.get_point(toi - 0.01);
                 if let Some(position) = chunk_manager.get_voxel_position(&chunk_pos, &hit_point) {
-                    let Ok(mut voxel_indicator_transform) = voxel_indicator_query.get_single_mut() else { return; };
-                    println!("Voxel pos {}", position);
-                    voxel_indicator_transform.translation = position;
+                    let Ok((mut selector_transform, _selector_material)) = voxel_indicator_query.get_single_mut() else { return; };
+                    selector_transform.translation = position;
+                }
+            } else if mouse.just_released(MouseButton::Left) {
+                let hit_point = ray.get_point(toi - 0.01);
+                chunk_manager.update_voxel(&chunk_pos, &hit_point, true, VoxelType::Grass);
+            }
+            // Right mouse click - Remove voxels
+            else if mouse.pressed(MouseButton::Right) {
+                let hit_point = ray.get_point(toi + 0.01);
+                if let Some(position) = chunk_manager.get_voxel_position(&chunk_pos, &hit_point) {
+                    let Ok((mut selector_transform, _selector_material)) = voxel_indicator_query.get_single_mut() else { return; };
+                    selector_transform.translation = position;
+                }
+            } else if mouse.just_released(MouseButton::Right) {
+                let hit_point = ray.get_point(toi + 0.01);
+                chunk_manager.update_voxel(&chunk_pos, &hit_point, false, VoxelType::None);
+            }
+            // No click, just show voxel indicator
+            else {
+                let hit_point = ray.get_point(toi - 0.01);
+                if let Some(position) = chunk_manager.get_voxel_position(&chunk_pos, &hit_point) {
+                    let Ok((mut selector_transform, _selector_material)) = voxel_indicator_query.get_single_mut() else { return; };
+                    selector_transform.translation = position;
                 }
             }
         }
