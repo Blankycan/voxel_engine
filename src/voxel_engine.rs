@@ -59,6 +59,20 @@ fn load_resources(
 #[derive(Component)]
 pub struct VoxelIndicator;
 
+enum SelectorColor {
+    Default,
+    Blue,
+    Red,
+}
+
+fn selector_color(color: SelectorColor) -> Color {
+    match color {
+        SelectorColor::Default => Color::rgba(1.0, 1.0, 1.0, 0.2),
+        SelectorColor::Blue => Color::rgba(0.0, 0.584, 0.914, 0.3),
+        SelectorColor::Red => Color::rgba(1.0, 0.0, 0.266, 0.3),
+    }
+}
+
 fn setup_voxel_indicator(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -68,7 +82,7 @@ fn setup_voxel_indicator(
         PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
             material: materials.add(StandardMaterial {
-                base_color: Color::rgba(1.0, 1.0, 1.0, 0.1),
+                base_color: Color::rgba(1.0, 1.0, 1.0, 0.2),
                 alpha_mode: AlphaMode::Blend,
                 unlit: true,
                 fog_enabled: false,
@@ -82,6 +96,7 @@ fn setup_voxel_indicator(
         Wireframe,
         VoxelIndicator,
         NotShadowCaster,
+        Name::new("Selector"),
     ));
 }
 
@@ -129,9 +144,10 @@ fn mouse_interaction(
     rapier_context: Res<RapierContext>,
     mut chunk_manager: ResMut<ChunkManager>,
     mut voxel_indicator_query: Query<
-        (&mut Transform, &mut Handle<StandardMaterial>),
+        (&mut Transform, &Handle<StandardMaterial>, &mut Visibility),
         With<VoxelIndicator>,
     >,
+    mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let Ok(window) = window_query.get_single() else { return; };
     let Some(cursor_position) = window.cursor_position() else { return; };
@@ -145,14 +161,19 @@ fn mouse_interaction(
         true,
         QueryFilter::new(),
     ) {
+        let Ok((mut selector_transform, selector_material_handle, mut selector_visibility)) = voxel_indicator_query.get_single_mut() else { return; };
+        let Some(material) = materials.get_mut(selector_material_handle) else { return; };
+
         // Check if it's a chunk we're interacting with
         if let Some(chunk_pos) = chunk_manager.get_chunk_pos_by_entity(entity) {
+            *selector_visibility = Visibility::Inherited;
+
             // Left mouse click - Create voxels
             if mouse.pressed(MouseButton::Left) {
                 let hit_point = ray.get_point(toi - 0.01);
                 if let Some(position) = chunk_manager.get_voxel_position(&chunk_pos, &hit_point) {
-                    let Ok((mut selector_transform, _selector_material)) = voxel_indicator_query.get_single_mut() else { return; };
                     selector_transform.translation = position;
+                    material.base_color = selector_color(SelectorColor::Blue);
                 }
             } else if mouse.just_released(MouseButton::Left) {
                 let hit_point = ray.get_point(toi - 0.01);
@@ -162,8 +183,8 @@ fn mouse_interaction(
             else if mouse.pressed(MouseButton::Right) {
                 let hit_point = ray.get_point(toi + 0.01);
                 if let Some(position) = chunk_manager.get_voxel_position(&chunk_pos, &hit_point) {
-                    let Ok((mut selector_transform, _selector_material)) = voxel_indicator_query.get_single_mut() else { return; };
                     selector_transform.translation = position;
+                    material.base_color = selector_color(SelectorColor::Red);
                 }
             } else if mouse.just_released(MouseButton::Right) {
                 let hit_point = ray.get_point(toi + 0.01);
@@ -173,10 +194,13 @@ fn mouse_interaction(
             else {
                 let hit_point = ray.get_point(toi - 0.01);
                 if let Some(position) = chunk_manager.get_voxel_position(&chunk_pos, &hit_point) {
-                    let Ok((mut selector_transform, _selector_material)) = voxel_indicator_query.get_single_mut() else { return; };
                     selector_transform.translation = position;
+                    material.base_color = selector_color(SelectorColor::Default);
                 }
             }
+        } else {
+            *selector_visibility = Visibility::Hidden;
+            material.base_color = selector_color(SelectorColor::Default);
         }
     }
 }
