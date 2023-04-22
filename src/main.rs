@@ -2,6 +2,7 @@ extern crate lazy_static;
 
 use bevy::prelude::*;
 use bevy::window::PresentMode;
+use voxel_interaction::VoxelInteractionPlugin;
 
 mod debug_info;
 mod fly_camera;
@@ -14,6 +15,7 @@ mod chunk_mesh_builder;
 pub mod face;
 pub mod voxel;
 mod voxel_engine;
+mod voxel_interaction;
 pub mod voxel_textures;
 
 use voxel_engine::VoxelEnginePlugin;
@@ -34,6 +36,7 @@ fn main() {
         .add_plugin(FlyCameraPlugin)
         .add_plugin(DebugInfoPlugin)
         .add_plugin(VoxelEnginePlugin)
+        .add_plugin(VoxelInteractionPlugin)
         .add_startup_system(setup)
         .run();
 }
