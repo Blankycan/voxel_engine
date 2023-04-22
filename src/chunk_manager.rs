@@ -11,7 +11,6 @@ use bevy::prelude::{Commands, Transform};
 use bevy::render::primitives::Frustum;
 use bevy::utils::hashbrown::HashMap;
 use bevy::utils::Uuid;
-use bevy_mod_picking::PickableBundle;
 use bevy_rapier3d::prelude::{Collider, ComputedColliderShape};
 
 pub const MAX_CHUNKS: usize = 10000;
@@ -470,7 +469,6 @@ impl ChunkManager {
                             },
                             NotShadowCaster,
                         ))
-                        .insert(PickableBundle::default())
                         .insert(collider)
                         .id();
                     self.rendered_meshes.insert(chunk_pos, chunk_entity);
